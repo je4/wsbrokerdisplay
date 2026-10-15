@@ -40,8 +40,12 @@ func TestLoadConfigDefault(t *testing.T) {
 		t.Errorf("expected WSBroker 'https://localhost:8765', got '%s'", conf.WSBroker)
 	}
 
-	if !conf.Browser.Headless {
-		t.Errorf("expected Browser.Headless to be true, got false")
+	if conf.Browser.Headless {
+		t.Errorf("expected Browser.Headless to be false, got true")
+	}
+
+	if !conf.Browser.Kiosk {
+		t.Errorf("expected Browser.Kiosk to be true, got false")
 	}
 
 	if conf.Browser.WindowWidth != 1920 || conf.Browser.WindowHeight != 1080 {

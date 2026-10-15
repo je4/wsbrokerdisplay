@@ -264,3 +264,29 @@ func TestEvaluateFunction(t *testing.T) {
 		t.Errorf("expected 'Hello World!', got '%s'", greeting)
 	}
 }
+
+func TestBrowserDebugLogCommand(t *testing.T) {
+	var buf bytes.Buffer
+	loggerZero := zerolog.New(&buf).Level(zerolog.DebugLevel).With().Timestamp().Logger()
+	var logger zLogger.ZLogger = &loggerZero
+
+	conf := DefaultConfig()
+	conf.Headless = true
+	b := New(conf, logger)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := b.Start(ctx); err != nil {
+		t.Skipf("skipping test: chrome not available: %v", err)
+		return
+	}
+	defer func() {
+		_ = b.Close()
+	}()
+
+	logOutput := buf.String()
+	if !strings.Contains(logOutput, "chrome launch command") {
+		t.Errorf("expected debug log to contain chrome launch command, got: %s", logOutput)
+	}
+}

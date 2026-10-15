@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"strings"
 	"sync"
 
 	"emperror.dev/errors"
@@ -50,6 +52,9 @@ func (b *Browser) Start(ctx context.Context) error {
 	b.cleanupUnsafe()
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("enable-automation", false),
+		chromedp.Flag("disable-blink-features", "AutomationControlled"),
+
 		chromedp.DisableGPU,
 		chromedp.NoSandbox,
 	)
@@ -91,25 +96,31 @@ func (b *Browser) Start(ctx context.Context) error {
 		opts = append(opts, chromedp.Flag(flag, true))
 	}
 
+	opts = append(opts, chromedp.ModifyCmdFunc(func(cmd *exec.Cmd) {
+		if b.logger != nil {
+			b.logger.Debug().Str("cmd", cmd.String()).Msgf("chrome launch command: %s", cmd.String())
+		}
+	}))
+
 	b.allocCtx, b.allocCancel = chromedp.NewExecAllocator(context.Background(), opts...)
 	b.taskCtx, b.taskCancel = chromedp.NewContext(b.allocCtx)
 
 	chromedp.ListenTarget(b.taskCtx, func(ev any) {
 		if consoleEv, ok := ev.(*runtime.EventConsoleAPICalled); ok {
-			var text string
+			var text strings.Builder
 			for idx, arg := range consoleEv.Args {
 				if idx > 0 {
-					text += " "
+					text.WriteString(" ")
 				}
 				if arg.Value != nil {
-					text += fmt.Sprintf("%v", arg.Value)
+					text.WriteString(fmt.Sprintf("%v", arg.Value))
 				} else if arg.Description != "" {
-					text += arg.Description
+					text.WriteString(arg.Description)
 				}
 			}
 			msg := ConsoleMessage{
 				Level:     string(consoleEv.Type),
-				Message:   text,
+				Message:   text.String(),
 				Timestamp: consoleEv.Timestamp.Time(),
 			}
 
