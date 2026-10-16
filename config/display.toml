@@ -4,8 +4,14 @@ name = "display01"
 wsbroker = "https://localhost:8765"
 channels = ["all", "intern", "display"]
 
+[ntp]
+server = "wsbroker"
+interval = "10m"
+timeout = "5s"
+
 [browser]
 address = ""
+start_url = "http://localhost:8760"
 headless = false
 kiosk = false
 window_width = 1024

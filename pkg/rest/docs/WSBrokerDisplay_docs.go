@@ -6,7 +6,148 @@ import "github.com/swaggo/swag/v2"
 
 const docTemplateWSBrokerDisplay = `{
     "schemes": {{ marshal .Schemes }},
-    "components": {},
+    "components": {
+        "schemas": {
+            "github_com_je4_wsbrokerdisplay_pkg_ntp.NTPStatus": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "last_sync": {
+                        "type": "string"
+                    },
+                    "leap_indicator": {
+                        "type": "string"
+                    },
+                    "offset": {
+                        "type": "string"
+                    },
+                    "offset_nanos": {
+                        "$ref": "#/components/schemas/time.Duration"
+                    },
+                    "precision": {
+                        "type": "string"
+                    },
+                    "reference_id": {
+                        "type": "string"
+                    },
+                    "rtt": {
+                        "type": "string"
+                    },
+                    "rtt_nanos": {
+                        "$ref": "#/components/schemas/time.Duration"
+                    },
+                    "server": {
+                        "type": "string"
+                    },
+                    "stratum": {
+                        "type": "integer"
+                    },
+                    "synced": {
+                        "type": "boolean"
+                    },
+                    "time": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "pkg_rest.BrowserInfo": {
+                "properties": {
+                    "address": {
+                        "type": "string"
+                    },
+                    "headless": {
+                        "type": "boolean"
+                    },
+                    "height": {
+                        "type": "integer"
+                    },
+                    "kiosk": {
+                        "type": "boolean"
+                    },
+                    "width": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "pkg_rest.DashboardData": {
+                "properties": {
+                    "addr": {
+                        "type": "string"
+                    },
+                    "arch": {
+                        "type": "string"
+                    },
+                    "browser": {
+                        "$ref": "#/components/schemas/pkg_rest.BrowserInfo"
+                    },
+                    "channels": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "client_name": {
+                        "type": "string"
+                    },
+                    "ext_addr": {
+                        "type": "string"
+                    },
+                    "go_version": {
+                        "type": "string"
+                    },
+                    "hostname": {
+                        "type": "string"
+                    },
+                    "ntp": {
+                        "$ref": "#/components/schemas/github_com_je4_wsbrokerdisplay_pkg_ntp.NTPStatus"
+                    },
+                    "os": {
+                        "type": "string"
+                    },
+                    "start_time": {
+                        "type": "string"
+                    },
+                    "tls_type": {
+                        "type": "string"
+                    },
+                    "uptime": {
+                        "type": "string"
+                    },
+                    "ws_broker": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "time.Duration": {
+                "enum": [
+                    -9223372036854775808,
+                    9223372036854775807,
+                    1,
+                    1000,
+                    1000000,
+                    1000000000,
+                    60000000000,
+                    3600000000000
+                ],
+                "type": "integer",
+                "x-enum-varnames": [
+                    "minDuration",
+                    "maxDuration",
+                    "Nanosecond",
+                    "Microsecond",
+                    "Millisecond",
+                    "Second",
+                    "Minute",
+                    "Hour"
+                ]
+            }
+        }
+    },
     "info": {
         "contact": {
             "email": "juergen.enge@unibas.ch",
@@ -27,6 +168,28 @@ const docTemplateWSBrokerDisplay = `{
         "url": ""
     },
     "paths": {
+        "/ntp": {
+            "get": {
+                "description": "returns live NTP synchronization metrics and clock offset",
+                "operationId": "get-ntp",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/github_com_je4_wsbrokerdisplay_pkg_ntp.NTPStatus"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "summary": "get NTP synchronization status",
+                "tags": [
+                    "wsbrokerdisplay"
+                ]
+            }
+        },
         "/ping": {
             "get": {
                 "description": "for testing if server is running",
@@ -44,6 +207,28 @@ const docTemplateWSBrokerDisplay = `{
                     }
                 },
                 "summary": "does pong",
+                "tags": [
+                    "wsbrokerdisplay"
+                ]
+            }
+        },
+        "/status": {
+            "get": {
+                "description": "returns comprehensive dashboard telemetry, metadata, and NTP synchronization status",
+                "operationId": "get-status",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/pkg_rest.DashboardData"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "summary": "get display status and system metadata",
                 "tags": [
                     "wsbrokerdisplay"
                 ]

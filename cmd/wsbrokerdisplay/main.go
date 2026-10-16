@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -15,6 +16,7 @@ import (
 	rawclient "github.com/je4/wsbrokerclient/pkg/client"
 	"github.com/je4/wsbrokerdisplay/pkg/browser"
 	"github.com/je4/wsbrokerdisplay/pkg/display"
+	"github.com/je4/wsbrokerdisplay/pkg/ntp"
 	"github.com/je4/wsbrokerdisplay/pkg/rest"
 	"github.com/rs/zerolog"
 )
@@ -44,21 +46,9 @@ func main() {
 		extAddr = fmt.Sprintf("http://%s", addr)
 	}
 
-	// 3. Initialize REST controller
-	ctrl, err := rest.NewController(addr, extAddr, logger)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("cannot initialize rest controller")
-	}
+	appStartTime := time.Now().UTC()
 
-	// 4. Initialize Chromium browser controller
-	browserCtrl := browser.New(conf.Browser, logger)
-	browserCtx, browserCancel := context.WithTimeout(context.Background(), 20*time.Second)
-	if err := browserCtrl.Start(browserCtx); err != nil {
-		logger.Warn().Err(err).Msg("could not initialize browser at startup")
-	}
-	browserCancel()
-
-	// 5. Initialize WSBroker client
+	// 3. Initialize WSBroker client
 	rawCfg := rawclient.DefaultConfig()
 	rawOpts := []rawclient.Option{
 		rawclient.WithEndpoint(conf.WSBroker),
@@ -78,7 +68,65 @@ func main() {
 		logger.Fatal().Err(err).Msg("cannot initialize wsbroker client")
 	}
 
-	// 6. Initialize and start display coordinator
+	// 4. Initialize and start NTP synchronization service via wsbrokerclient
+	serverName := conf.NTP.Server
+	if serverName == "" {
+		serverName = "wsbroker"
+	}
+	ntpSvc := ntp.New(rawClient, serverName, conf.NTP.Interval, conf.NTP.Timeout, logger)
+	ntpCtx, ntpCancel := context.WithCancel(context.Background())
+	defer ntpCancel()
+	ntpSvc.Start(ntpCtx)
+
+	// 5. Configure default browser landing page URL
+	if conf.Browser.GetStartURL() == "" {
+		conf.Browser.StartURL = extAddr
+	}
+
+	// 6. Initialize REST controller with live telemetry data provider
+	dataProvider := func() rest.DashboardData {
+		hostname, _ := os.Hostname()
+		ntpStatus := ntpSvc.Status()
+		browserCfg := conf.Browser
+
+		return rest.DashboardData{
+			ClientName: conf.Name,
+			WSBroker:   conf.WSBroker,
+			Channels:   conf.Channels,
+			Addr:       addr,
+			ExtAddr:    extAddr,
+			TLSType:    conf.ClientTLS.Type,
+			Hostname:   hostname,
+			OS:         runtime.GOOS,
+			Arch:       runtime.GOARCH,
+			GoVersion:  runtime.Version(),
+			Uptime:     time.Since(appStartTime).Truncate(time.Second).String(),
+			StartTime:  appStartTime,
+			BrowserConfig: rest.BrowserInfo{
+				Kiosk:    browserCfg.Kiosk,
+				Headless: browserCfg.Headless,
+				Width:    browserCfg.WindowWidth,
+				Height:   browserCfg.WindowHeight,
+				Address:  browserCfg.Address,
+			},
+			NTP: ntpStatus,
+		}
+	}
+
+	ctrl, err := rest.NewController(addr, extAddr, logger, rest.WithDataProvider(dataProvider))
+	if err != nil {
+		logger.Fatal().Err(err).Msg("cannot initialize rest controller")
+	}
+
+	// 7. Initialize Chromium browser controller
+	browserCtrl := browser.New(conf.Browser, logger)
+	browserCtx, browserCancel := context.WithTimeout(context.Background(), 20*time.Second)
+	if err := browserCtrl.Start(browserCtx); err != nil {
+		logger.Warn().Err(err).Msg("could not initialize browser at startup")
+	}
+	browserCancel()
+
+	// 8. Initialize and start display coordinator
 	dispCtrl := display.NewController(rawClient, browserCtrl, logger)
 	dispCtrl.Start()
 
@@ -86,7 +134,7 @@ func main() {
 		logger.Warn().Err(err).Msg("failed to initiate wsbroker connection")
 	}
 
-	// 7. Start REST service in background
+	// 9. Start REST service in background
 	var wg sync.WaitGroup
 	ctrl.Start(&wg)
 
@@ -95,10 +143,11 @@ func main() {
 	fmt.Printf(" Client:   %s\n", conf.Name)
 	fmt.Printf(" Broker:   %s\n", conf.WSBroker)
 	fmt.Printf(" REST API: %s (%s/swagger/index.html)\n", addr, extAddr)
+	fmt.Printf(" Default:  %s\n", conf.Browser.GetStartURL())
 	fmt.Println("==================================================")
 	fmt.Println("Press Ctrl+C to terminate...")
 
-	// 8. Await termination signals for graceful shutdown
+	// 10. Await termination signals for graceful shutdown
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
 	<-done
@@ -108,6 +157,7 @@ func main() {
 	defer shutdownCancel()
 	_ = shutdownCtx
 
+	ntpSvc.Stop()
 	dispCtrl.Stop()
 	if err := rawClient.Close(); err != nil {
 		logger.Warn().Err(err).Msg("error closing wsbroker client")

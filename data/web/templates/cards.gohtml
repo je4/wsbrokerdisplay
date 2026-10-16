@@ -1,0 +1,200 @@
+<!-- Hidden NTP offset storage for JavaScript clock synchronization -->
+<div id="ntp-offset-data" data-offset-nanos="{{.NTP.Offset.Nanoseconds}}" class="hidden"></div>
+
+<div class="kiosk-grid">
+    <!-- Card 1: NTP Network Time Synchronization -->
+    <div class="metric-card p-5 flex flex-col justify-between">
+        <div>
+            <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-800">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <h3 class="font-semibold text-gray-200">Network Time (NTP)</h3>
+                </div>
+                {{if .NTP.Synced}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-900/60 text-emerald-300 border border-emerald-700/50">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 pulse-indicator"></span> Synced
+                </span>
+                {{else}}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-900/60 text-amber-300 border border-amber-700/50">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5"></span> Unsynchronized
+                </span>
+                {{end}}
+            </div>
+
+            <dl class="space-y-2.5 text-sm">
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Server</dt>
+                    <dd class="font-mono text-gray-200 font-medium">{{.NTP.Server}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Clock Offset</dt>
+                    <dd class="font-mono {{if .NTP.Synced}}text-emerald-400{{else}}text-gray-400{{end}} font-medium">{{if .NTP.Synced}}{{.NTP.OffsetString}}{{else}}--{{end}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Round-Trip Delay (RTT)</dt>
+                    <dd class="font-mono text-gray-200 font-medium">{{if .NTP.Synced}}{{.NTP.RTTString}}{{else}}--{{end}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Stratum / Reference</dt>
+                    <dd class="font-mono text-gray-200">{{if .NTP.Synced}}Stratum {{.NTP.Stratum}} ({{.NTP.ReferenceID}}){{else}}--{{end}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Precision / Leap</dt>
+                    <dd class="font-mono text-xs text-gray-300">{{if .NTP.Synced}}{{.NTP.Precision}} / {{.NTP.LeapIndicator}}{{else}}--{{end}}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="mt-4 pt-2 border-t border-gray-800/60 text-xs text-gray-500 flex justify-between items-center">
+            <span>Last Sync</span>
+            <span>{{if .NTP.Synced}}{{.NTP.LastSync.Format "15:04:05 UTC"}}{{else}}Pending sync{{end}}</span>
+        </div>
+    </div>
+
+    <!-- Card 2: WSBroker & Client Identity -->
+    <div class="metric-card p-5 flex flex-col justify-between">
+        <div>
+            <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-800">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    <h3 class="font-semibold text-gray-200">WSBroker Client</h3>
+                </div>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-900/60 text-indigo-300 border border-indigo-700/50">
+                    Active
+                </span>
+            </div>
+
+            <dl class="space-y-2.5 text-sm">
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Client Name</dt>
+                    <dd class="font-mono text-gray-200 font-semibold">{{.ClientName}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Broker Endpoint</dt>
+                    <dd class="font-mono text-xs text-gray-200 truncate max-w-[180px]" title="{{.WSBroker}}">{{.WSBroker}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">TLS Cert Loader</dt>
+                    <dd class="font-mono text-gray-200">{{if .TLSType}}{{.TLSType}}{{else}}Disabled / System{{end}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">REST Listening Addr</dt>
+                    <dd class="font-mono text-gray-200">{{.Addr}}</dd>
+                </div>
+                <div class="flex justify-between items-start">
+                    <dt class="text-gray-400 pt-0.5">Channels</dt>
+                    <dd class="text-right">
+                        {{if .Channels}}
+                        <div class="flex flex-wrap gap-1 justify-end max-w-[200px]">
+                            {{range .Channels}}
+                            <span class="inline-block bg-gray-800 text-gray-300 font-mono text-xs px-2 py-0.5 rounded border border-gray-700">{{.}}</span>
+                            {{end}}
+                        </div>
+                        {{else}}
+                        <span class="text-gray-500 font-mono text-xs">none</span>
+                        {{end}}
+                    </dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="mt-4 pt-2 border-t border-gray-800/60 text-xs text-gray-500 flex justify-between items-center">
+            <span>External Addr</span>
+            <span class="font-mono">{{if .ExtAddr}}{{.ExtAddr}}{{else}}--{{end}}</span>
+        </div>
+    </div>
+
+    <!-- Card 3: Chromium Browser Engine -->
+    <div class="metric-card p-5 flex flex-col justify-between">
+        <div>
+            <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-800">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    <h3 class="font-semibold text-gray-200">Display & Browser</h3>
+                </div>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-900/60 text-emerald-300 border border-emerald-700/50">
+                    {{if .BrowserConfig.Kiosk}}Kiosk Mode{{else if .BrowserConfig.Headless}}Headless{{else}}Windowed{{end}}
+                </span>
+            </div>
+
+            <dl class="space-y-2.5 text-sm">
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Display Resolution</dt>
+                    <dd class="font-mono text-gray-200 font-medium">{{.BrowserConfig.Width}} × {{.BrowserConfig.Height}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Headless Mode</dt>
+                    <dd class="font-mono text-gray-200">{{if .BrowserConfig.Headless}}Yes{{else}}No{{end}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Kiosk Mode</dt>
+                    <dd class="font-mono text-gray-200">{{if .BrowserConfig.Kiosk}}Enabled{{else}}Disabled{{end}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Remote CDP Endpoint</dt>
+                    <dd class="font-mono text-xs text-gray-200 truncate max-w-[160px]">{{if .BrowserConfig.Address}}{{.BrowserConfig.Address}}{{else}}Local Instance{{end}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Supervisor Lifecycle</dt>
+                    <dd class="text-emerald-400 font-medium">Automatic Restart</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="mt-4 pt-2 border-t border-gray-800/60 text-xs text-gray-500 flex justify-between items-center">
+            <span>Controller</span>
+            <span>Chrome DevTools Protocol</span>
+        </div>
+    </div>
+
+    <!-- Card 4: Host & System Telemetry -->
+    <div class="metric-card p-5 flex flex-col justify-between">
+        <div>
+            <div class="flex items-center justify-between mb-4 pb-2 border-b border-gray-800">
+                <div class="flex items-center space-x-2">
+                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path>
+                    </svg>
+                    <h3 class="font-semibold text-gray-200">Host System</h3>
+                </div>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-900/60 text-purple-300 border border-purple-700/50">
+                    {{.OS}}/{{.Arch}}
+                </span>
+            </div>
+
+            <dl class="space-y-2.5 text-sm">
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Hostname</dt>
+                    <dd class="font-mono text-gray-200 font-medium">{{.Hostname}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Operating System</dt>
+                    <dd class="font-mono text-gray-200">{{.OS}} ({{.Arch}})</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Go Runtime</dt>
+                    <dd class="font-mono text-gray-200">{{.GoVersion}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Process Uptime</dt>
+                    <dd class="font-mono text-emerald-400 font-semibold">{{.Uptime}}</dd>
+                </div>
+                <div class="flex justify-between items-center">
+                    <dt class="text-gray-400">Started At</dt>
+                    <dd class="font-mono text-xs text-gray-300">{{.StartTime.Format "2006-01-02 15:04:05"}}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <div class="mt-4 pt-2 border-t border-gray-800/60 text-xs text-gray-500 flex justify-between items-center">
+            <span>Status</span>
+            <span class="text-emerald-400 font-medium">Operational</span>
+        </div>
+    </div>
+</div>

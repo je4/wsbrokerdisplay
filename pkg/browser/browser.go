@@ -59,24 +59,37 @@ func normalizeAddress(addr string) string {
 // Start launches the Chrome/Chromium browser process or connects to a remote CDP endpoint.
 func (b *Browser) Start(ctx context.Context) error {
 	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	b.closing = false
 
 	if b.taskCtx != nil && b.taskCtx.Err() == nil {
+		b.mu.Unlock()
 		return nil // already running
 	}
 
 	b.cleanupUnsafe()
 
 	if b.config.Address != "" {
-		return b.startRemoteUnsafe(ctx)
+		if err := b.startRemoteUnsafe(ctx); err != nil {
+			b.mu.Unlock()
+			return err
+		}
+	} else {
+		b.startSupervisorUnsafe()
+		if err := b.startLocalUnsafe(ctx); err != nil {
+			b.mu.Unlock()
+			return err
+		}
 	}
 
-	b.startSupervisorUnsafe()
-	if err := b.startLocalUnsafe(ctx); err != nil {
-		return err
+	startURL := b.config.GetStartURL()
+	b.mu.Unlock()
+
+	if startURL != "" {
+		if err := b.Navigate(ctx, startURL); err != nil && b.logger != nil {
+			b.logger.Warn().Err(err).Str("url", startURL).Msg("failed initial navigation to start URL")
+		}
 	}
+
 	return nil
 }
 
@@ -261,7 +274,15 @@ func (b *Browser) supervisorLoop(supCtx context.Context) {
 			b.mu.Unlock()
 			continue
 		}
+
+		startURL := b.config.GetStartURL()
 		b.mu.Unlock()
+
+		if startURL != "" {
+			if err := b.Navigate(context.Background(), startURL); err != nil && b.logger != nil {
+				b.logger.Warn().Err(err).Str("url", startURL).Msg("failed to re-navigate to start URL after restart")
+			}
+		}
 
 		if b.logger != nil {
 			b.logger.Info().Msg("browser instance automatically restarted successfully")

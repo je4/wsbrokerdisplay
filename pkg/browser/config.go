@@ -8,6 +8,12 @@ type Config struct {
 	// When non-empty, Browser connects to the remote endpoint instead of launching a local Chrome process.
 	Address string `toml:"address"`
 
+	// StartURL specifies the initial landing page URL navigated to on browser startup and restart.
+	StartURL string `toml:"start_url"`
+
+	// DefaultURL is an alias for StartURL.
+	DefaultURL string `toml:"default_url"`
+
 	// Headless determines whether Chrome/Chromium runs without a graphical user interface.
 	Headless bool `toml:"headless"`
 
@@ -35,6 +41,14 @@ type Config struct {
 
 	// CustomFlags allows passing additional custom command-line flags to the Chrome process.
 	CustomFlags []string `toml:"custom_flags"`
+}
+
+// GetStartURL returns the configured startup URL, prioritizing StartURL over DefaultURL.
+func (c Config) GetStartURL() string {
+	if c.StartURL != "" {
+		return c.StartURL
+	}
+	return c.DefaultURL
 }
 
 // DefaultConfig returns a Config struct populated with recommended default settings.

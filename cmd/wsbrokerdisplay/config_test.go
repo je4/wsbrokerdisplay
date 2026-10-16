@@ -85,6 +85,14 @@ func TestLoadConfigDefault(t *testing.T) {
 	if conf.WebTLS.Type != "dev" {
 		t.Errorf("expected WebTLS.Type 'dev', got '%s'", conf.WebTLS.Type)
 	}
+
+	if conf.NTP.Server != "wsbroker" {
+		t.Errorf("expected NTP.Server 'wsbroker', got '%s'", conf.NTP.Server)
+	}
+
+	if conf.Browser.StartURL != "http://localhost:8760" {
+		t.Errorf("expected Browser.StartURL 'http://localhost:8760', got '%s'", conf.Browser.StartURL)
+	}
 }
 
 func TestLoadConfigFile(t *testing.T) {

@@ -1,12 +1,21 @@
 package main
 
 import (
+	"time"
+
 	"emperror.dev/errors"
 	"github.com/BurntSushi/toml"
 	"github.com/je4/wsbrokerdisplay/config"
 	"github.com/je4/wsbrokerdisplay/pkg/browser"
 	"go.ub.unibas.ch/cloud/certloader/v2/pkg/loader"
 )
+
+// NTPConfig defines network time synchronization configuration parameters.
+type NTPConfig struct {
+	Server   string        `toml:"server"`
+	Interval time.Duration `toml:"interval"`
+	Timeout  time.Duration `toml:"timeout"`
+}
 
 // DisplayConfig defines configuration parameters for the wsbrokerdisplay application.
 //
@@ -16,6 +25,7 @@ import (
 //   - Name: Unique client identifier (e.g. "display01") used for wsbrokerclient identity and authorization.
 //   - WSBroker: Target broker endpoint URL (e.g. "https://localhost:8765").
 //   - Channels: Initial list of channels to subscribe to on startup (e.g. ["all", "intern", "display"]).
+//   - NTP: Network time protocol client and background sync configuration.
 //   - Browser: Chromium browser engine settings (headless, kiosk, viewport dimensions, etc.).
 //   - ClientTLS: mTLS configuration via certloader (MiniVault, File, Env, Dev, or ACME).
 //   - WebTLS: TLS configuration for the local web display interface.
@@ -25,6 +35,7 @@ type DisplayConfig struct {
 	Name      string         `toml:"name"`
 	WSBroker  string         `toml:"wsbroker"`
 	Channels  []string       `toml:"channels"`
+	NTP       NTPConfig      `toml:"ntp"`
 	Browser   browser.Config `toml:"browser"`
 	ClientTLS loader.Config  `toml:"clienttls"`
 	WebTLS    loader.Config  `toml:"webtls"`

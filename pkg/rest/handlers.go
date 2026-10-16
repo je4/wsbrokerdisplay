@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/je4/wsbrokerdisplay/pkg/ntp"
 )
 
 // ping godoc
@@ -18,4 +19,44 @@ import (
 //	@Router			/ping [get]
 func (ctrl *controller) ping(c *gin.Context) {
 	c.String(http.StatusOK, "pong")
+}
+
+// dashboard renders the full HTML dashboard landing page.
+func (ctrl *controller) dashboard(c *gin.Context) {
+	data := ctrl.getDashboardData()
+	c.HTML(http.StatusOK, "dashboard.gohtml", data)
+}
+
+// dashboardCards renders the partial HTML cards for HTMX dynamic polling updates.
+func (ctrl *controller) dashboardCards(c *gin.Context) {
+	data := ctrl.getDashboardData()
+	c.HTML(http.StatusOK, "cards.gohtml", data)
+}
+
+// status godoc
+//
+//	@Summary		get display status and system metadata
+//	@ID				get-status
+//	@Description	returns comprehensive dashboard telemetry, metadata, and NTP synchronization status
+//	@Tags			wsbrokerdisplay
+//	@Produce		json
+//	@Success		200		{object}	DashboardData
+//	@Router			/status [get]
+func (ctrl *controller) status(c *gin.Context) {
+	data := ctrl.getDashboardData()
+	c.JSON(http.StatusOK, data)
+}
+
+// ntpStatus godoc
+//
+//	@Summary		get NTP synchronization status
+//	@ID				get-ntp
+//	@Description	returns live NTP synchronization metrics and clock offset
+//	@Tags			wsbrokerdisplay
+//	@Produce		json
+//	@Success		200		{object}	ntp.NTPStatus
+//	@Router			/ntp [get]
+func (ctrl *controller) ntpStatus(c *gin.Context) {
+	data := ctrl.getDashboardData()
+	c.JSON(http.StatusOK, data.NTP)
 }
