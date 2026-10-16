@@ -62,7 +62,7 @@
             <div class="absolute inset-0 bg-blue-600/5 blur-3xl pointer-events-none"></div>
             
             <div class="relative z-10 flex flex-col items-center">
-                <div class="inline-flex items-center space-x-2 mb-2 px-3 py-1 rounded-full bg-gray-800/80 border border-gray-700/60 text-xs text-gray-300">
+                <div id="ntp-status-badge" class="inline-flex items-center space-x-2 mb-2 px-3 py-1 rounded-full bg-gray-800/80 border border-gray-700/60 text-xs text-gray-300">
                     <span class="w-2 h-2 rounded-full {{if .NTP.Synced}}bg-emerald-400{{else}}bg-amber-400{{end}}"></span>
                     <span>{{if .NTP.Synced}}NTP Synchronized (Offset: {{.NTP.OffsetString}}){{else}}Awaiting NTP Synchronization{{end}}</span>
                 </div>

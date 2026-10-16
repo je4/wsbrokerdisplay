@@ -1,6 +1,12 @@
 <!-- Hidden NTP offset storage for JavaScript clock synchronization -->
 <div id="ntp-offset-data" data-offset-nanos="{{.NTP.Offset.Nanoseconds}}" class="hidden"></div>
 
+<!-- Out-of-band update for header NTP status badge -->
+<div id="ntp-status-badge" hx-swap-oob="true" class="inline-flex items-center space-x-2 mb-2 px-3 py-1 rounded-full bg-gray-800/80 border border-gray-700/60 text-xs text-gray-300">
+    <span class="w-2 h-2 rounded-full {{if .NTP.Synced}}bg-emerald-400{{else}}bg-amber-400{{end}}"></span>
+    <span>{{if .NTP.Synced}}NTP Synchronized (Offset: {{.NTP.OffsetString}}){{else}}Awaiting NTP Synchronization{{end}}</span>
+</div>
+
 <div class="kiosk-grid">
     <!-- Card 1: NTP Network Time Synchronization -->
     <div class="metric-card p-5 flex flex-col justify-between">
