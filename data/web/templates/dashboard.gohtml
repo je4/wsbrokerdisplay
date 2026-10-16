@@ -5,20 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WSBroker Display - {{.ClientName}}</title>
     <!-- Tailwind CSS & HTMX Integration -->
-    <script src="static/js/tailwind-3.4.17.js"></script>
+    <link rel="stylesheet" href="/static/css/tailwind.min.css">
     <script src="static/js/htmx-2.0.11.js"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        kiosk: '#0b0f19',
-                    }
-                }
-            }
-        }
-    </script>
     <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white p-4 sm:p-6 lg:p-8">
