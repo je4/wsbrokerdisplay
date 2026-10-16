@@ -51,6 +51,7 @@ type Controller struct {
 	logger       zLogger.ZLogger
 	timeout      time.Duration
 	unsubscribes []client.UnsubscribeFunc
+	onSend       func(evt *event.Event)
 	mu           sync.Mutex
 }
 
@@ -63,6 +64,13 @@ func WithTimeout(d time.Duration) Option {
 		if d > 0 {
 			c.timeout = d
 		}
+	}
+}
+
+// WithOnSend registers a callback invoked whenever the controller sends an outgoing event.
+func WithOnSend(fn func(evt *event.Event)) Option {
+	return func(c *Controller) {
+		c.onSend = fn
 	}
 }
 
@@ -259,6 +267,9 @@ func (c *Controller) sendResponse(ctx context.Context, target string, response a
 	if len(token) > 0 && token[0] != "" {
 		evt.Token = token[0]
 	}
+	if c.onSend != nil {
+		c.onSend(evt)
+	}
 	return c.client.Send(ctx, evt)
 }
 
@@ -268,6 +279,9 @@ func (c *Controller) sendFile(ctx context.Context, target string, filename, mime
 	evt, err := event.NewFileEvent(c.client.ClientName(), target, fileMsg, token...)
 	if err != nil {
 		return errors.Wrap(err, "failed to create file event")
+	}
+	if c.onSend != nil {
+		c.onSend(evt)
 	}
 	return c.client.Send(ctx, evt)
 }

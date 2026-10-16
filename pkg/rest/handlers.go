@@ -60,3 +60,20 @@ func (ctrl *controller) ntpStatus(c *gin.Context) {
 	data := ctrl.getDashboardData()
 	c.JSON(http.StatusOK, data.NTP)
 }
+
+// messages godoc
+//
+//	@Summary		get recent WebSocket message log
+//	@ID				get-messages
+//	@Description	returns rolling buffer of recent incoming and outgoing WebSocket messages
+//	@Tags			wsbrokerdisplay
+//	@Produce		json
+//	@Success		200		{array}		WSMessage
+//	@Router			/messages [get]
+func (ctrl *controller) messages(c *gin.Context) {
+	data := ctrl.getDashboardData()
+	if data.Messages == nil {
+		data.Messages = []WSMessage{}
+	}
+	c.JSON(http.StatusOK, data.Messages)
+}

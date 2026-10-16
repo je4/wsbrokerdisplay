@@ -40,6 +40,10 @@ func TestLoadConfigDefault(t *testing.T) {
 		t.Errorf("expected WSBroker 'https://localhost:8765', got '%s'", conf.WSBroker)
 	}
 
+	if conf.MaxMessages != 100 {
+		t.Errorf("expected MaxMessages 100, got %d", conf.MaxMessages)
+	}
+
 	if conf.Browser.Address != "" {
 		t.Errorf("expected Browser.Address to be empty, got '%s'", conf.Browser.Address)
 	}

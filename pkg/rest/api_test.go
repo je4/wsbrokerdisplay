@@ -403,3 +403,150 @@ func TestStatusAndNTPEndpoints(t *testing.T) {
 		}
 	}
 }
+
+func TestMessageLog(t *testing.T) {
+	log := NewMessageLog(3)
+	if log.Len() != 0 {
+		t.Fatalf("expected initial len 0, got %d", log.Len())
+	}
+	if log.Capacity() != 3 {
+		t.Fatalf("expected capacity 3, got %d", log.Capacity())
+	}
+
+	log.Add(WSMessage{
+		Type:   "message",
+		Source: "c1",
+		Data:   "first",
+	})
+	log.Add(WSMessage{
+		Type:   "message",
+		Source: "c2",
+		Data:   "second",
+	})
+	log.Add(WSMessage{
+		Type:   "message",
+		Source: "c3",
+		Data:   "third",
+	})
+
+	if log.Len() != 3 {
+		t.Fatalf("expected len 3, got %d", log.Len())
+	}
+
+	// Adding fourth should drop first (capacity=3)
+	log.Add(WSMessage{
+		Type:   "message",
+		Source: "c4",
+		Data:   "fourth",
+	})
+
+	msgs := log.GetAll()
+	if len(msgs) != 3 {
+		t.Fatalf("expected 3 entries after rolling buffer drop, got %d", len(msgs))
+	}
+	if msgs[0].Data != "second" || msgs[1].Data != "third" || msgs[2].Data != "fourth" {
+		t.Errorf("unexpected message order: %+v", msgs)
+	}
+
+	// Resize capacity down to 2
+	log.SetCapacity(2)
+	if log.Capacity() != 2 {
+		t.Fatalf("expected capacity 2, got %d", log.Capacity())
+	}
+	if log.Len() != 2 {
+		t.Fatalf("expected len 2 after SetCapacity(2), got %d", log.Len())
+	}
+	msgs = log.GetAll()
+	if msgs[0].Data != "third" || msgs[1].Data != "fourth" {
+		t.Errorf("unexpected message order after SetCapacity: %+v", msgs)
+	}
+
+	log.Clear()
+	if log.Len() != 0 {
+		t.Fatalf("expected len 0 after Clear, got %d", log.Len())
+	}
+}
+
+func TestMessagesEndpointAndDashboardCards(t *testing.T) {
+	logger := zerolog.Nop()
+
+	msgLog := NewMessageLog(10)
+	msgLog.Add(WSMessage{
+		Timestamp: time.Now().UTC(),
+		Direction: "in",
+		Type:      "message",
+		Source:    "remote01",
+		Target:    "display01",
+		Token:     "tok-123",
+		Data:      `{"action":"navigate","url":"https://example.com"}`,
+	})
+	msgLog.Add(WSMessage{
+		Timestamp: time.Now().UTC(),
+		Direction: "out",
+		Type:      "message",
+		Source:    "display01",
+		Target:    "remote01",
+		Token:     "tok-123",
+		Data:      `{"action":"navigate_response","status":"ok"}`,
+	})
+
+	ctrl, err := NewController(":0", "http://localhost:8760", &logger, WithDataProvider(func() DashboardData {
+		return DashboardData{
+			ClientName: "display01",
+			Messages:   msgLog.GetAll(),
+		}
+	}))
+	if err != nil {
+		t.Fatalf("failed to create controller: %v", err)
+	}
+
+	// 1. GET /api/v1/messages
+	{
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/api/v1/messages", nil)
+		req.RemoteAddr = "127.0.0.1:12345"
+		ctrl.router.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("expected 200 for GET /api/v1/messages, got %d: %s", w.Code, w.Body.String())
+		}
+
+		var msgs []WSMessage
+		if err := json.Unmarshal(w.Body.Bytes(), &msgs); err != nil {
+			t.Fatalf("failed to unmarshal JSON messages: %v", err)
+		}
+		if len(msgs) != 2 {
+			t.Fatalf("expected 2 messages, got %d", len(msgs))
+		}
+		if msgs[0].Direction != "in" || msgs[0].Source != "remote01" || msgs[0].Token != "tok-123" {
+			t.Errorf("unexpected message 0: %+v", msgs[0])
+		}
+		if msgs[1].Direction != "out" || msgs[1].Source != "display01" {
+			t.Errorf("unexpected message 1: %+v", msgs[1])
+		}
+	}
+
+	// 2. GET /dashboard/cards should render WebSocket Message Log table
+	{
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/dashboard/cards", nil)
+		req.RemoteAddr = "127.0.0.1:12345"
+		ctrl.router.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Errorf("expected 200 for GET /dashboard/cards, got %d", w.Code)
+		}
+
+		body := w.Body.String()
+		if !strings.Contains(body, "WebSocket Message Log") {
+			t.Errorf("expected cards template to contain 'WebSocket Message Log'")
+		}
+		if !strings.Contains(body, "2 entries") {
+			t.Errorf("expected cards template to contain '2 entries'")
+		}
+		if !strings.Contains(body, "remote01") || !strings.Contains(body, "tok-123") {
+			t.Errorf("expected cards template to contain message details")
+		}
+		if !strings.Contains(body, "IN") || !strings.Contains(body, "OUT") {
+			t.Errorf("expected cards template to contain direction badges IN and OUT")
+		}
+	}
+}

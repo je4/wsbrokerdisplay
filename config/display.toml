@@ -3,6 +3,7 @@ extaddr = "http://localhost:8760"
 name = "display01"
 wsbroker = "https://localhost:8765"
 channels = ["all", "intern", "display"]
+max_messages = 100
 
 [ntp]
 server = "wsbroker"

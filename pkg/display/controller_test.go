@@ -481,3 +481,41 @@ func TestControllerIgnoreSelfAndResponseMessages(t *testing.T) {
 		t.Errorf("expected no browser navigate, got %s", mockBr.lastNavigate)
 	}
 }
+
+func TestControllerWithOnSend(t *testing.T) {
+	logger := newTestLogger()
+	mockCl := newMockClient("display01")
+	mockBr := &mockBrowser{}
+
+	var interceptedEvents []*event.Event
+	var mu sync.Mutex
+
+	ctrl := NewController(mockCl, mockBr, logger, WithOnSend(func(evt *event.Event) {
+		mu.Lock()
+		defer mu.Unlock()
+		interceptedEvents = append(interceptedEvents, evt)
+	}))
+	ctrl.Start()
+	defer ctrl.Stop()
+
+	cmd := CommandMessage{
+		Action: ActionNavigate,
+		URL:    "https://example.com/welcome",
+	}
+	evt, err := event.NewMessageEvent("remoteClient", "display01", cmd)
+	if err != nil {
+		t.Fatalf("failed to create event: %v", err)
+	}
+	evt.Token = "tok-navigate-1"
+
+	mockCl.EmitMessage(evt)
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(interceptedEvents) != 1 {
+		t.Fatalf("expected 1 intercepted event, got %d", len(interceptedEvents))
+	}
+	if interceptedEvents[0].Token != "tok-navigate-1" {
+		t.Errorf("expected token tok-navigate-1, got %s", interceptedEvents[0].Token)
+	}
+}

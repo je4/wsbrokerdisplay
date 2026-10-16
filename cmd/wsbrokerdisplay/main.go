@@ -14,6 +14,7 @@ import (
 
 	"github.com/je4/utils/v2/pkg/zLogger"
 	rawclient "github.com/je4/wsbrokerclient/pkg/client"
+	"github.com/je4/wsbrokerclient/pkg/event"
 	"github.com/je4/wsbrokerdisplay/pkg/browser"
 	"github.com/je4/wsbrokerdisplay/pkg/display"
 	"github.com/je4/wsbrokerdisplay/pkg/ntp"
@@ -68,7 +69,17 @@ func main() {
 		logger.Fatal().Err(err).Msg("cannot initialize wsbroker client")
 	}
 
-	// 4. Initialize and start NTP synchronization service via wsbrokerclient
+	// 4. Initialize rolling WebSocket message log and register event listener
+	maxMessages := conf.MaxMessages
+	if maxMessages <= 0 {
+		maxMessages = 100
+	}
+	msgLog := rest.NewMessageLog(maxMessages)
+	rawClient.OnEvent(func(evt *event.Event) {
+		msgLog.AddEvent("in", evt)
+	})
+
+	// 5. Initialize and start NTP synchronization service via wsbrokerclient
 	serverName := conf.NTP.Server
 	if serverName == "" {
 		serverName = "wsbroker"
@@ -78,12 +89,12 @@ func main() {
 	defer ntpCancel()
 	ntpSvc.Start(ntpCtx)
 
-	// 5. Configure default browser landing page URL
+	// 6. Configure default browser landing page URL
 	if conf.Browser.GetStartURL() == "" {
 		conf.Browser.StartURL = extAddr
 	}
 
-	// 6. Initialize REST controller with live telemetry data provider
+	// 7. Initialize REST controller with live telemetry data provider
 	dataProvider := func() rest.DashboardData {
 		hostname, _ := os.Hostname()
 		ntpStatus := ntpSvc.Status()
@@ -109,7 +120,8 @@ func main() {
 				Height:   browserCfg.WindowHeight,
 				Address:  browserCfg.Address,
 			},
-			NTP: ntpStatus,
+			NTP:      ntpStatus,
+			Messages: msgLog.GetAll(),
 		}
 	}
 
@@ -118,7 +130,7 @@ func main() {
 		logger.Fatal().Err(err).Msg("cannot initialize rest controller")
 	}
 
-	// 7. Initialize Chromium browser controller
+	// 8. Initialize Chromium browser controller
 	browserCtrl := browser.New(conf.Browser, logger)
 	browserCtx, browserCancel := context.WithTimeout(context.Background(), 20*time.Second)
 	if err := browserCtrl.Start(browserCtx); err != nil {
@@ -126,8 +138,12 @@ func main() {
 	}
 	browserCancel()
 
-	// 8. Initialize and start display coordinator
-	dispCtrl := display.NewController(rawClient, browserCtrl, logger)
+	// 9. Initialize and start display coordinator with outgoing event logger
+	dispCtrl := display.NewController(rawClient, browserCtrl, logger,
+		display.WithOnSend(func(evt *event.Event) {
+			msgLog.AddEvent("out", evt)
+		}),
+	)
 	dispCtrl.Start()
 
 	if err := rawClient.Connect(context.Background()); err != nil {

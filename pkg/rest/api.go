@@ -163,6 +163,7 @@ func (ctrl *controller) Init() error {
 	v1.GET("/ping", ctrl.ping)
 	v1.GET("/status", ctrl.status)
 	v1.GET("/ntp", ctrl.ntpStatus)
+	v1.GET("/messages", ctrl.messages)
 
 	ctrl.router.GET("/swagger/*any", swaggerui.CustomHandler(
 		swaggerui.WithTitle("WSBroker Display API"),

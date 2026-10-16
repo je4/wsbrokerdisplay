@@ -25,20 +25,22 @@ type NTPConfig struct {
 //   - Name: Unique client identifier (e.g. "display01") used for wsbrokerclient identity and authorization.
 //   - WSBroker: Target broker endpoint URL (e.g. "https://localhost:8765").
 //   - Channels: Initial list of channels to subscribe to on startup (e.g. ["all", "intern", "display"]).
+//   - MaxMessages: Maximum number of WebSocket messages to retain in memory log (default 100).
 //   - NTP: Network time protocol client and background sync configuration.
 //   - Browser: Chromium browser engine settings (headless, kiosk, viewport dimensions, etc.).
 //   - ClientTLS: mTLS configuration via certloader (MiniVault, File, Env, Dev, or ACME).
 //   - WebTLS: TLS configuration for the local web display interface.
 type DisplayConfig struct {
-	Addr      string         `toml:"addr"`
-	ExtAddr   string         `toml:"extaddr"`
-	Name      string         `toml:"name"`
-	WSBroker  string         `toml:"wsbroker"`
-	Channels  []string       `toml:"channels"`
-	NTP       NTPConfig      `toml:"ntp"`
-	Browser   browser.Config `toml:"browser"`
-	ClientTLS loader.Config  `toml:"clienttls"`
-	WebTLS    loader.Config  `toml:"webtls"`
+	Addr        string         `toml:"addr"`
+	ExtAddr     string         `toml:"extaddr"`
+	Name        string         `toml:"name"`
+	WSBroker    string         `toml:"wsbroker"`
+	Channels    []string       `toml:"channels"`
+	MaxMessages int            `toml:"max_messages"`
+	NTP         NTPConfig      `toml:"ntp"`
+	Browser     browser.Config `toml:"browser"`
+	ClientTLS   loader.Config  `toml:"clienttls"`
+	WebTLS      loader.Config  `toml:"webtls"`
 }
 
 // Config is an alias for DisplayConfig.
