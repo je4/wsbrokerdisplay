@@ -48,7 +48,7 @@ func (ml *MessageLog) SetCapacity(capacity int) {
 // Add appends a WSMessage entry to the log, dropping the oldest if capacity is reached.
 func (ml *MessageLog) Add(msg WSMessage) {
 	if msg.Timestamp.IsZero() {
-		msg.Timestamp = time.Now().UTC()
+		msg.Timestamp = time.Now()
 	}
 	ml.mu.Lock()
 	defer ml.mu.Unlock()
@@ -70,7 +70,7 @@ func (ml *MessageLog) AddEvent(direction string, evt *event.Event) {
 		dataStr = string(evt.Data)
 	}
 	ml.Add(WSMessage{
-		Timestamp: time.Now().UTC(),
+		Timestamp: time.Now(),
 		Direction: direction,
 		Type:      string(evt.Type),
 		Source:    evt.Source,
@@ -80,8 +80,20 @@ func (ml *MessageLog) AddEvent(direction string, evt *event.Event) {
 	})
 }
 
-// GetAll returns a copy of all logged messages in chronological order.
+// GetAll returns a copy of all logged messages in reverse chronological order (newest first).
 func (ml *MessageLog) GetAll() []WSMessage {
+	ml.mu.RLock()
+	defer ml.mu.RUnlock()
+	n := len(ml.entries)
+	result := make([]WSMessage, n)
+	for i, entry := range ml.entries {
+		result[n-1-i] = entry
+	}
+	return result
+}
+
+// GetAllChronological returns a copy of all logged messages in chronological order (oldest first).
+func (ml *MessageLog) GetAllChronological() []WSMessage {
 	ml.mu.RLock()
 	defer ml.mu.RUnlock()
 	result := make([]WSMessage, len(ml.entries))

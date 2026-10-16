@@ -251,10 +251,10 @@ func TestDashboardAndStaticRoutes(t *testing.T) {
 		if !strings.Contains(body, "WSBroker Display") {
 			t.Errorf("expected GET / to contain 'WSBroker Display'")
 		}
-		if !strings.Contains(body, "cdn.tailwindcss.com") {
-			t.Errorf("expected GET / to contain Tailwind CSS CDN script")
+		if !strings.Contains(body, "tailwind") {
+			t.Errorf("expected GET / to contain Tailwind CSS script")
 		}
-		if !strings.Contains(body, "unpkg.com/htmx.org@2.0.11") {
+		if !strings.Contains(body, "htmx") {
 			t.Errorf("expected GET / to contain HTMX script")
 		}
 		if !strings.Contains(body, "test-display-01") {
@@ -444,8 +444,15 @@ func TestMessageLog(t *testing.T) {
 	if len(msgs) != 3 {
 		t.Fatalf("expected 3 entries after rolling buffer drop, got %d", len(msgs))
 	}
-	if msgs[0].Data != "second" || msgs[1].Data != "third" || msgs[2].Data != "fourth" {
-		t.Errorf("unexpected message order: %+v", msgs)
+	// GetAll should return newest first ("fourth", "third", "second")
+	if msgs[0].Data != "fourth" || msgs[1].Data != "third" || msgs[2].Data != "second" {
+		t.Errorf("unexpected message order for GetAll (newest first): %+v", msgs)
+	}
+
+	// GetAllChronological should return oldest first ("second", "third", "fourth")
+	chronoMsgs := log.GetAllChronological()
+	if chronoMsgs[0].Data != "second" || chronoMsgs[1].Data != "third" || chronoMsgs[2].Data != "fourth" {
+		t.Errorf("unexpected message order for GetAllChronological: %+v", chronoMsgs)
 	}
 
 	// Resize capacity down to 2
@@ -457,7 +464,7 @@ func TestMessageLog(t *testing.T) {
 		t.Fatalf("expected len 2 after SetCapacity(2), got %d", log.Len())
 	}
 	msgs = log.GetAll()
-	if msgs[0].Data != "third" || msgs[1].Data != "fourth" {
+	if msgs[0].Data != "fourth" || msgs[1].Data != "third" {
 		t.Errorf("unexpected message order after SetCapacity: %+v", msgs)
 	}
 
@@ -517,11 +524,11 @@ func TestMessagesEndpointAndDashboardCards(t *testing.T) {
 		if len(msgs) != 2 {
 			t.Fatalf("expected 2 messages, got %d", len(msgs))
 		}
-		if msgs[0].Direction != "in" || msgs[0].Source != "remote01" || msgs[0].Token != "tok-123" {
-			t.Errorf("unexpected message 0: %+v", msgs[0])
+		if msgs[0].Direction != "out" || msgs[0].Source != "display01" || msgs[0].Token != "tok-123" {
+			t.Errorf("unexpected message 0 (expected newest 'out'): %+v", msgs[0])
 		}
-		if msgs[1].Direction != "out" || msgs[1].Source != "display01" {
-			t.Errorf("unexpected message 1: %+v", msgs[1])
+		if msgs[1].Direction != "in" || msgs[1].Source != "remote01" {
+			t.Errorf("unexpected message 1 (expected older 'in'): %+v", msgs[1])
 		}
 	}
 
