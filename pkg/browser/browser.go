@@ -2,7 +2,6 @@ package browser
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -11,8 +10,8 @@ import (
 	"time"
 
 	"emperror.dev/errors"
-	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/remote"
 	"github.com/je4/utils/v2/pkg/zLogger"
 )
 
@@ -95,14 +94,14 @@ func (b *Browser) Start(ctx context.Context) error {
 
 func (b *Browser) startRemoteUnsafe(ctx context.Context) error {
 	remoteURL := normalizeAddress(b.config.Address)
-	b.allocCtx, b.allocCancel = chromedp.NewRemoteAllocator(context.Background(), remoteURL)
+	b.allocCtx, b.allocCancel = remote.NewAllocator(context.Background(), remoteURL)
 	b.taskCtx, b.taskCancel = chromedp.NewContext(b.allocCtx)
-	b.setupTargetListenerUnsafe()
 
-	if err := chromedp.Run(b.taskCtx); err != nil {
+	if err := chromedp.Do(b.taskCtx); err != nil {
 		b.cleanupUnsafe()
 		return errors.Wrapf(err, "cannot connect to remote chrome at '%s'", remoteURL)
 	}
+	b.setupTargetListenerUnsafe()
 
 	if b.logger != nil {
 		b.logger.Info().Str("address", remoteURL).Msg("connected to remote chrome instance successfully")
@@ -164,12 +163,12 @@ func (b *Browser) startLocalUnsafe(ctx context.Context) error {
 
 	b.allocCtx, b.allocCancel = chromedp.NewExecAllocator(context.Background(), opts...)
 	b.taskCtx, b.taskCancel = chromedp.NewContext(b.allocCtx)
-	b.setupTargetListenerUnsafe()
 
-	if err := chromedp.Run(b.taskCtx); err != nil {
+	if err := chromedp.Do(b.taskCtx); err != nil {
 		b.cleanupUnsafe()
 		return errors.Wrap(err, "cannot launch chrome browser instance")
 	}
+	b.setupTargetListenerUnsafe()
 
 	if b.logger != nil {
 		b.logger.Info().Msg("browser instance started successfully")
@@ -178,23 +177,20 @@ func (b *Browser) startLocalUnsafe(ctx context.Context) error {
 }
 
 func (b *Browser) setupTargetListenerUnsafe() {
-	chromedp.ListenTarget(b.taskCtx, func(ev any) {
-		if consoleEv, ok := ev.(*runtime.EventConsoleAPICalled); ok {
-			var text strings.Builder
-			for idx, arg := range consoleEv.Args {
-				if idx > 0 {
-					text.WriteString(" ")
-				}
-				if arg.Value != nil {
-					text.WriteString(fmt.Sprintf("%v", arg.Value))
-				} else if arg.Description != "" {
-					text.WriteString(arg.Description)
-				}
+	messages := chromedp.Console(b.taskCtx)
+	go func() {
+		for m, err := range messages {
+			if err != nil {
+				return
+			}
+			ts := m.Time
+			if ts.IsZero() {
+				ts = time.Now()
 			}
 			msg := ConsoleMessage{
-				Level:     string(consoleEv.Type),
-				Message:   text.String(),
-				Timestamp: consoleEv.Timestamp.Time(),
+				Level:     string(m.Type),
+				Message:   m.Text,
+				Timestamp: ts,
 			}
 
 			b.handlerMu.RLock()
@@ -205,7 +201,7 @@ func (b *Browser) setupTargetListenerUnsafe() {
 				handler(msg)
 			}
 		}
-	})
+	}()
 }
 
 func (b *Browser) startSupervisorUnsafe() {
@@ -333,14 +329,14 @@ func (b *Browser) actionContext(ctx context.Context) (context.Context, context.C
 }
 
 // Run executes custom chromedp actions within the browser context.
-func (b *Browser) Run(ctx context.Context, actions ...chromedp.Action) error {
+func (b *Browser) Run(ctx context.Context, actions ...chromedp.Action[chromedp.Void]) error {
 	actCtx, cancel, err := b.actionContext(ctx)
 	if err != nil {
 		return err
 	}
 	defer cancel()
 
-	if err := chromedp.Run(actCtx, actions...); err != nil {
+	if err := chromedp.Do(actCtx, actions...); err != nil {
 		return errors.Wrap(err, "failed to execute browser actions")
 	}
 	return nil

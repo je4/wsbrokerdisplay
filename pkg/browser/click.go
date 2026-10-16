@@ -53,12 +53,12 @@ func (b *Browser) Click(ctx context.Context, opts ClickOptions) error {
 				return r.width > 0 && r.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
 			})()`, strconv.Quote(opts.Selector))
 
-			var isVisible bool
 			ticker := time.NewTicker(25 * time.Millisecond)
 			defer ticker.Stop()
 
 			for {
-				if err := chromedp.Run(actCtx, chromedp.Evaluate(waitScript, &isVisible)); err != nil {
+				isVisible, err := chromedp.Run(actCtx, chromedp.Evaluate[bool](waitScript))
+				if err != nil {
 					return errors.Wrapf(err, "failed evaluating visibility for selector '%s'", opts.Selector)
 				}
 				if isVisible {
@@ -88,8 +88,8 @@ func (b *Browser) Click(ctx context.Context, opts ClickOptions) error {
 			return true;
 		})()`, strconv.Quote(opts.Selector), btnCode)
 
-		var success bool
-		if err := chromedp.Run(actCtx, chromedp.Evaluate(clickScript, &success)); err != nil {
+		success, err := chromedp.Run(actCtx, chromedp.Evaluate[bool](clickScript))
+		if err != nil {
 			return errors.Wrapf(err, "failed to click selector '%s'", opts.Selector)
 		}
 		if !success {
@@ -114,8 +114,8 @@ func (b *Browser) Click(ctx context.Context, opts ClickOptions) error {
 		return true;
 	})()`, opts.X, opts.Y, btnCode)
 
-	var success bool
-	if err := chromedp.Run(actCtx, chromedp.Evaluate(coordScript, &success)); err != nil {
+	success, err := chromedp.Run(actCtx, chromedp.Evaluate[bool](coordScript))
+	if err != nil {
 		return errors.Wrapf(err, "failed to click at coordinates (%.1f, %.1f)", opts.X, opts.Y)
 	}
 	if !success {

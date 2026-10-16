@@ -8,6 +8,7 @@ import (
 	"image/png"
 
 	"emperror.dev/errors"
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/chromedp"
 	"github.com/disintegration/imaging"
@@ -46,7 +47,17 @@ func (b *Browser) Screenshot(ctx context.Context, opts ScreenshotOptions) ([]byt
 	isJPEG := opts.Format == "jpeg" || (opts.Format == "" && opts.Quality > 0)
 
 	if opts.FullPage {
-		if err := chromedp.Run(actCtx, chromedp.FullScreenshot(&rawBuf, 100)); err != nil {
+		quality := opts.Quality
+		if quality <= 0 || quality > 100 {
+			if isJPEG {
+				quality = 90
+			} else {
+				quality = 100
+			}
+		}
+		var err error
+		rawBuf, err = chromedp.Run(actCtx, chromedp.FullScreenshot(quality))
+		if err != nil {
 			return nil, "", errors.Wrap(err, "failed to capture full page screenshot")
 		}
 	} else if isJPEG {
@@ -54,26 +65,28 @@ func (b *Browser) Screenshot(ctx context.Context, opts ScreenshotOptions) ([]byt
 		if quality <= 0 || quality > 100 {
 			quality = 90
 		}
-		action := chromedp.ActionFunc(func(c context.Context) error {
-			var err error
-			rawBuf, err = page.CaptureScreenshot().
-				WithFormat(page.CaptureScreenshotFormatJpeg).
-				WithQuality(int64(quality)).
-				Do(c)
-			return err
-		})
-		if err := chromedp.Run(actCtx, action); err != nil {
+		fromSurface := true
+		q := int64(quality)
+		action := func(c context.Context, t *chromedp.Target) ([]byte, error) {
+			res, err := cdp.Call(c, t, page.CaptureScreenshot, page.CaptureScreenshotParams{
+				Format:      page.CaptureScreenshotFormatJpeg,
+				Quality:     &q,
+				FromSurface: &fromSurface,
+			})
+			if err != nil {
+				return nil, err
+			}
+			return res.Data, nil
+		}
+		var err error
+		rawBuf, err = chromedp.Run(actCtx, action)
+		if err != nil {
 			return nil, "", errors.Wrap(err, "failed to capture viewport screenshot")
 		}
 	} else {
-		action := chromedp.ActionFunc(func(c context.Context) error {
-			var err error
-			rawBuf, err = page.CaptureScreenshot().
-				WithFormat(page.CaptureScreenshotFormatPng).
-				Do(c)
-			return err
-		})
-		if err := chromedp.Run(actCtx, action); err != nil {
+		var err error
+		rawBuf, err = chromedp.Run(actCtx, chromedp.CaptureScreenshot())
+		if err != nil {
 			return nil, "", errors.Wrap(err, "failed to capture viewport screenshot")
 		}
 	}

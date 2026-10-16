@@ -17,17 +17,37 @@ func (b *Browser) Evaluate(ctx context.Context, script string, target any) error
 	}
 	defer cancel()
 
-	if err := chromedp.Run(actCtx, chromedp.Evaluate(script, target)); err != nil {
+	if target == nil {
+		if _, err := chromedp.Run(actCtx, chromedp.Evaluate[chromedp.Void](script)); err != nil {
+			return errors.Wrapf(err, "failed to evaluate javascript: %s", script)
+		}
+		return nil
+	}
+
+	rawJSON, err := chromedp.Run(actCtx, chromedp.Evaluate[[]byte](script))
+	if err != nil {
 		return errors.Wrapf(err, "failed to evaluate javascript: %s", script)
+	}
+	if len(rawJSON) > 0 {
+		if err := json.Unmarshal(rawJSON, target); err != nil {
+			return errors.Wrapf(err, "failed to unmarshal evaluation result into target for script '%s'", script)
+		}
 	}
 	return nil
 }
 
 // EvaluateGeneric is a type-safe generic helper function to evaluate a JavaScript expression and return type T.
 func EvaluateGeneric[T any](ctx context.Context, b *Browser, script string) (T, error) {
-	var result T
-	if err := b.Evaluate(ctx, script, &result); err != nil {
-		return result, err
+	var zero T
+	actCtx, cancel, err := b.actionContext(ctx)
+	if err != nil {
+		return zero, err
+	}
+	defer cancel()
+
+	result, err := chromedp.Run(actCtx, chromedp.Evaluate[T](script))
+	if err != nil {
+		return zero, errors.Wrapf(err, "failed to evaluate javascript: %s", script)
 	}
 	return result, nil
 }

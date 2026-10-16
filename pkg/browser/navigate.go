@@ -20,14 +20,14 @@ func (b *Browser) NavigateWait(ctx context.Context, targetURL string, waitSelect
 	}
 	defer cancel()
 
-	tasks := chromedp.Tasks{
+	steps := []chromedp.Action[chromedp.Void]{
 		chromedp.Navigate(targetURL),
 	}
 	if waitSelector != "" {
-		tasks = append(tasks, chromedp.WaitReady(waitSelector, chromedp.ByQuery))
+		steps = append(steps, chromedp.WaitReady(waitSelector))
 	}
 
-	if err := chromedp.Run(actCtx, tasks); err != nil {
+	if err := chromedp.Do(actCtx, steps...); err != nil {
 		return errors.Wrapf(err, "failed to navigate to URL '%s'", targetURL)
 	}
 
@@ -42,8 +42,8 @@ func (b *Browser) GetURL(ctx context.Context) (string, error) {
 	}
 	defer cancel()
 
-	var currentURL string
-	if err := chromedp.Run(actCtx, chromedp.Location(&currentURL)); err != nil {
+	currentURL, err := chromedp.Run(actCtx, chromedp.Location())
+	if err != nil {
 		return "", errors.Wrap(err, "failed to get current browser URL")
 	}
 
