@@ -2,9 +2,8 @@ addr = "localhost:8760"
 extaddr = "http://localhost:8760"
 name = "display01"
 wsbroker = "https://localhost:8765"
-channels = ["all", "intern", "display"]
+channels = ["display"]
 max_messages = 100
-startpage = "https://www.heise.de"
 
 [ntp]
 server = "wsbroker"
@@ -14,6 +13,7 @@ timeout = "5s"
 [browser]
 address = ""
 start_url = "http://localhost:8760"
+#start_url = "https://www.heise.de"
 headless = false
 kiosk = false
 window_width = 1024

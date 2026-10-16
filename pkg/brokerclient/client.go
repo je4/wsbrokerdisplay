@@ -1,8 +1,8 @@
-// Package client provides a high-level client library for remotely controlling
+// Package brokerclient provides a high-level client library for remotely controlling
 // browser displays connected via the WSBroker WebSocket infrastructure.
 // Callers can issue navigation commands, retrieve active URLs, and capture
 // resolution-bounded screenshots synchronously or asynchronously.
-package client
+package brokerclient
 
 import (
 	"context"

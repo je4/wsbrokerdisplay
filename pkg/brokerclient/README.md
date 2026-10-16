@@ -1,6 +1,6 @@
-# Remote Browser Control Client Library (`pkg/client`)
+# Remote Browser Control Client Library (`pkg/brokerclient`)
 
-The `pkg/client` package provides a high-level Go client library / SDK for remotely controlling browser displays connected to the **WSBroker** WebSocket broker infrastructure.
+The `pkg/brokerclient` package provides a high-level Go client library / SDK for remotely controlling browser displays connected to the **WSBroker** WebSocket broker infrastructure.
 
 External applications, dashboards, and automated control services can use this package to instruct display instances to navigate to web pages, inspect the current active URL, and capture resolution-bounded screenshots synchronously or asynchronously.
 
@@ -82,65 +82,65 @@ type ScreenshotResult struct {
 package main
 
 import (
-    "context"
-    "fmt"
-    "log"
-    "time"
+	"context"
+	"fmt"
+	"log"
+	"time"
 
-    rawclient "github.com/je4/wsbrokerclient/pkg/client"
-    "github.com/je4/wsbrokerdisplay/pkg/client"
+	rawclient "github.com/je4/wsbrokerclient/pkg/client"
+	"github.com/je4/wsbrokerdisplay/pkg/brokerclient"
 )
 
 func main() {
-    // 1. Initialize underlying WSBroker client
-    rawCfg := rawclient.DefaultConfig()
-    raw, err := rawclient.New(rawCfg,
-        rawclient.WithEndpoint("https://localhost:8765"),
-        rawclient.WithClientName("adminController"),
-        rawclient.WithAutoReconnect(true),
-        rawclient.WithLogger(logger),
-    )
-    if err != nil {
-        log.Fatalf("failed to create raw client: %v", err)
-    }
+	// 1. Initialize underlying WSBroker client
+	rawCfg := rawclient.DefaultConfig()
+	raw, err := rawclient.New(rawCfg,
+		rawclient.WithEndpoint("https://localhost:8765"),
+		rawclient.WithClientName("adminController"),
+		rawclient.WithAutoReconnect(true),
+		rawclient.WithLogger(logger),
+	)
+	if err != nil {
+		log.Fatalf("failed to create raw client: %v", err)
+	}
 
-    // 2. Wrap with remote browser control client
-    c, err := client.New(raw, logger)
-    if err != nil {
-        log.Fatalf("failed to create remote control client: %v", err)
-    }
+	// 2. Wrap with remote browser control client
+	c, err := brokerclient.New(raw, logger)
+	if err != nil {
+		log.Fatalf("failed to create remote control client: %v", err)
+	}
 
-    if err := c.ConnectSync(context.Background()); err != nil {
-        log.Fatalf("failed to connect to broker: %v", err)
-    }
-    defer c.Close()
+	if err := c.ConnectSync(context.Background()); err != nil {
+		log.Fatalf("failed to connect to broker: %v", err)
+	}
+	defer c.Close()
 
-    targetDisplay := "display01"
-    ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-    defer cancel()
+	targetDisplay := "display01"
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
-    // 3. Navigate display to a URL
-    navResp, err := c.Navigate(ctx, targetDisplay, "https://example.com", "#content")
-    if err != nil {
-        log.Fatalf("navigation failed: %v", err)
-    }
-    fmt.Printf("Navigated display to %s (status: %s)\n", navResp.URL, navResp.Status)
+	// 3. Navigate display to a URL
+	navResp, err := c.Navigate(ctx, targetDisplay, "https://example.com", "#content")
+	if err != nil {
+		log.Fatalf("navigation failed: %v", err)
+	}
+	fmt.Printf("Navigated display to %s (status: %s)\n", navResp.URL, navResp.Status)
 
-    // 4. Query active URL
-    activeURL, err := c.GetURL(ctx, targetDisplay)
-    if err != nil {
-        log.Fatalf("geturl failed: %v", err)
-    }
-    fmt.Printf("Active display URL: %s\n", activeURL)
+	// 4. Query active URL
+	activeURL, err := c.GetURL(ctx, targetDisplay)
+	if err != nil {
+		log.Fatalf("geturl failed: %v", err)
+	}
+	fmt.Printf("Active display URL: %s\n", activeURL)
 
-    // 5. Capture bounded screenshot (max 800x600)
-    shot, err := c.GetScreenshot(ctx, targetDisplay, client.ScreenshotOptions{
-        Format:  "jpeg",
-        Quality: 85,
-    })
-    if err != nil {
-        log.Fatalf("screenshot failed: %v", err)
-    }
-    fmt.Printf("Received screenshot %s (%s, %d bytes)\n", shot.Filename, shot.MimeType, len(shot.Data))
+	// 5. Capture bounded screenshot (max 800x600)
+	shot, err := c.GetScreenshot(ctx, targetDisplay, brokerclient.ScreenshotOptions{
+		Format:  "jpeg",
+		Quality: 85,
+	})
+	if err != nil {
+		log.Fatalf("screenshot failed: %v", err)
+	}
+	fmt.Printf("Received screenshot %s (%s, %d bytes)\n", shot.Filename, shot.MimeType, len(shot.Data))
 }
 ```

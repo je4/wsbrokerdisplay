@@ -1,4 +1,4 @@
-package client
+package brokerclient
 
 // Action constants for remote browser control commands and responses.
 const (

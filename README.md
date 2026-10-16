@@ -13,7 +13,7 @@ A high-performance, real-time display and monitoring service with automated Chro
   - Generic type-safe JavaScript evaluation (`EvaluateGeneric[T]`, `EvaluateFunction[T]`).
   - Native DOM & coordinate-based mouse interactions with visibility polling.
   - Real-time console logging interception (`EventConsoleAPICalled`).
-- **WebSocket Remote Browser Control (`pkg/display` & `pkg/client`)**:
+- **WebSocket Remote Browser Control (`pkg/display` & `pkg/brokerclient`)**:
   - Real-time remote browser management over encrypted WSBroker connections.
   - Navigation command (`navigate`) with optional DOM selector readiness synchronization.
   - Active URL inspection command (`geturl`).
@@ -35,7 +35,7 @@ A high-performance, real-time display and monitoring service with automated Chro
 ```mermaid
 graph TD
     subgraph Remote["Remote Controller / Admin"]
-        Sender["Remote App / Dashboard using pkg/client"]
+        Sender["Remote App / Dashboard using pkg/brokerclient"]
     end
 
     subgraph BrokerSystem["WSBroker Infrastructure"]
@@ -213,7 +213,7 @@ wsbrokerdisplay/
 │   │   ├── navigate.go          # Page navigation, DOM readiness & URL inspection
 │   │   ├── README.md            # Browser package documentation
 │   │   └── screenshot.go        # Viewport/full-page capture & max dimension bounding
-│   ├── client/
+│   ├── brokerclient/
 │   │   ├── client.go            # High-level remote browser control client SDK
 │   │   ├── client_test.go       # Remote control API & serialization unit tests
 │   │   ├── models.go            # Command & response message payload models
