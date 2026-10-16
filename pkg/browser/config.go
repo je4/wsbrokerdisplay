@@ -4,6 +4,10 @@ import "time"
 
 // Config contains configuration options for initializing and running the browser instance.
 type Config struct {
+	// Address specifies the remote Chrome DevTools Protocol debugging endpoint (<host>:<port> or ws:// / http:// URL).
+	// When non-empty, Browser connects to the remote endpoint instead of launching a local Chrome process.
+	Address string `toml:"address"`
+
 	// Headless determines whether Chrome/Chromium runs without a graphical user interface.
 	Headless bool `toml:"headless"`
 
@@ -36,6 +40,7 @@ type Config struct {
 // DefaultConfig returns a Config struct populated with recommended default settings.
 func DefaultConfig() Config {
 	return Config{
+		Address:          "",
 		Headless:         true,
 		Kiosk:            false,
 		WindowWidth:      1920,

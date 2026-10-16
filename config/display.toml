@@ -5,10 +5,11 @@ wsbroker = "https://localhost:8765"
 channels = ["all", "intern", "display"]
 
 [browser]
+address = ""
 headless = false
-kiosk = true
-window_width = 1920
-window_height = 1080
+kiosk = false
+window_width = 1024
+window_height = 768
 ignore_cert_errors = true
 timeout = "30s"
 

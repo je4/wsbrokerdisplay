@@ -23,6 +23,9 @@ func newTestLogger() zLogger.ZLogger {
 
 func TestDefaultConfig(t *testing.T) {
 	conf := DefaultConfig()
+	if conf.Address != "" {
+		t.Errorf("expected Address to be empty by default, got '%s'", conf.Address)
+	}
 	if !conf.Headless {
 		t.Errorf("expected Headless to be true by default")
 	}
@@ -288,5 +291,110 @@ func TestBrowserDebugLogCommand(t *testing.T) {
 	logOutput := buf.String()
 	if !strings.Contains(logOutput, "chrome launch command") {
 		t.Errorf("expected debug log to contain chrome launch command, got: %s", logOutput)
+	}
+}
+
+func TestNormalizeAddress(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"", ""},
+		{"   ", ""},
+		{"localhost:9222", "ws://localhost:9222"},
+		{"127.0.0.1:9222", "ws://127.0.0.1:9222"},
+		{"ws://127.0.0.1:9222", "ws://127.0.0.1:9222"},
+		{"wss://remote:9222", "wss://remote:9222"},
+		{"http://127.0.0.1:9222", "http://127.0.0.1:9222"},
+		{"https://remote:9222", "https://remote:9222"},
+	}
+
+	for _, tc := range tests {
+		actual := normalizeAddress(tc.input)
+		if actual != tc.expected {
+			t.Errorf("normalizeAddress(%q) = %q, expected %q", tc.input, actual, tc.expected)
+		}
+	}
+}
+
+func TestRemoteAddressStart_ConnectionFailure(t *testing.T) {
+	logger := newTestLogger()
+	conf := DefaultConfig()
+	conf.Address = "127.0.0.1:54321"
+
+	b := New(conf, logger)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := b.Start(ctx)
+	if err == nil {
+		_ = b.Close()
+		t.Fatalf("expected error when connecting to unreachable remote address, got nil")
+	}
+	if b.IsRunning() {
+		t.Errorf("expected browser not to be running after failed remote connection")
+	}
+}
+
+func TestAutoRestartSupervisor(t *testing.T) {
+	logger := newTestLogger()
+	conf := DefaultConfig()
+	conf.Headless = true
+
+	b := New(conf, logger)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := b.Start(ctx); err != nil {
+		t.Skipf("skipping test: chrome not available: %v", err)
+		return
+	}
+	defer func() {
+		_ = b.Close()
+	}()
+
+	if !b.IsRunning() {
+		t.Fatalf("expected browser to be running after Start")
+	}
+
+	b.mu.Lock()
+	taskCancel := b.taskCancel
+	b.mu.Unlock()
+
+	if taskCancel == nil {
+		t.Fatalf("taskCancel is nil")
+	}
+
+	// Trigger simulated window close / context termination by canceling the task context
+	taskCancel()
+
+	// Wait for supervisor to detect termination and restart (1s backoff + startup time)
+	restartDetected := false
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		time.Sleep(200 * time.Millisecond)
+		if b.IsRunning() {
+			testCtx, testCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			val, err := EvaluateGeneric[int](testCtx, b, "1 + 1")
+			testCancel()
+			if err == nil && val == 2 {
+				restartDetected = true
+				break
+			}
+		}
+	}
+
+	if !restartDetected {
+		t.Fatalf("expected browser to automatically restart and evaluate actions after simulated crash")
+	}
+
+	// Close cleanly
+	if err := b.Close(); err != nil {
+		t.Fatalf("failed to close browser: %v", err)
+	}
+
+	time.Sleep(1500 * time.Millisecond)
+	if b.IsRunning() {
+		t.Errorf("expected browser not to restart after Close()")
 	}
 }

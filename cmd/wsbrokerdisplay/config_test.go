@@ -40,16 +40,20 @@ func TestLoadConfigDefault(t *testing.T) {
 		t.Errorf("expected WSBroker 'https://localhost:8765', got '%s'", conf.WSBroker)
 	}
 
+	if conf.Browser.Address != "" {
+		t.Errorf("expected Browser.Address to be empty, got '%s'", conf.Browser.Address)
+	}
+
 	if conf.Browser.Headless {
 		t.Errorf("expected Browser.Headless to be false, got true")
 	}
 
-	if !conf.Browser.Kiosk {
-		t.Errorf("expected Browser.Kiosk to be true, got false")
+	if conf.Browser.Kiosk {
+		t.Errorf("expected Browser.Kiosk to be false, got true")
 	}
 
-	if conf.Browser.WindowWidth != 1920 || conf.Browser.WindowHeight != 1080 {
-		t.Errorf("expected Browser window 1920x1080, got %dx%d", conf.Browser.WindowWidth, conf.Browser.WindowHeight)
+	if conf.Browser.WindowWidth != 1024 || conf.Browser.WindowHeight != 768 {
+		t.Errorf("expected Browser window 1024x768, got %dx%d", conf.Browser.WindowWidth, conf.Browser.WindowHeight)
 	}
 
 	expectedChannels := []string{"all", "intern", "display"}
@@ -95,6 +99,7 @@ wsbroker = "wss://broker.example.com:443"
 channels = ["alerts", "status"]
 
 [browser]
+address = "127.0.0.1:9222"
 headless = false
 kiosk = true
 window_width = 1280
@@ -133,6 +138,10 @@ type = "file"
 
 	if len(conf.Channels) != 2 || conf.Channels[0] != "alerts" || conf.Channels[1] != "status" {
 		t.Errorf("unexpected channels: %v", conf.Channels)
+	}
+
+	if conf.Browser.Address != "127.0.0.1:9222" {
+		t.Errorf("expected Browser.Address '127.0.0.1:9222', got '%s'", conf.Browser.Address)
 	}
 
 	if conf.Browser.Headless {
