@@ -19,6 +19,7 @@ kiosk = false
 window_width = 1024
 window_height = 768
 ignore_cert_errors = true
+custom_flags = ["test-type", "disable-features=Translate", "app=http://localhost:8760"]
 timeout = "30s"
 
 [clienttls]

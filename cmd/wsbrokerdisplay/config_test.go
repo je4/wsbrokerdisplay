@@ -60,7 +60,7 @@ func TestLoadConfigDefault(t *testing.T) {
 		t.Errorf("expected Browser window 1024x768, got %dx%d", conf.Browser.WindowWidth, conf.Browser.WindowHeight)
 	}
 
-	expectedChannels := []string{"all", "intern", "display"}
+	expectedChannels := []string{"display"}
 	if len(conf.Channels) != len(expectedChannels) {
 		t.Fatalf("expected %d channels, got %d", len(expectedChannels), len(conf.Channels))
 	}

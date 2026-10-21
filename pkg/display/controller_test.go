@@ -5,12 +5,14 @@ import (
 	"io"
 	"sync"
 	"testing"
+	"time"
 
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/zLogger"
 	"github.com/je4/wsbrokerclient/pkg/client"
 	"github.com/je4/wsbrokerclient/pkg/event"
 	"github.com/je4/wsbrokerdisplay/pkg/browser"
+	"github.com/je4/wsbrokerdisplay/pkg/rest"
 	"github.com/rs/zerolog"
 )
 
@@ -138,8 +140,8 @@ func TestControllerNavigateSuccess(t *testing.T) {
 	defer ctrl.Stop()
 
 	cmd := CommandMessage{
-		Action: ActionNavigate,
-		URL:    "https://example.com/test",
+		Event: EventNavigate,
+		URL:   "https://example.com/test",
 	}
 	evt, err := event.NewMessageEvent("remoteClient", "display01", cmd)
 	if err != nil {
@@ -181,7 +183,7 @@ func TestControllerNavigateWait(t *testing.T) {
 	defer ctrl.Stop()
 
 	cmd := CommandMessage{
-		Action:   ActionNavigate,
+		Event:    EventNavigate,
 		URL:      "https://example.com/wait",
 		Selector: "#app",
 	}
@@ -207,8 +209,8 @@ func TestControllerNavigateError(t *testing.T) {
 	defer ctrl.Stop()
 
 	cmd := CommandMessage{
-		Action: ActionNavigate,
-		URL:    "https://invalid.domain",
+		Event: EventNavigate,
+		URL:   "https://invalid.domain",
 	}
 	evt, err := event.NewMessageEvent("remoteClient", "display01", cmd)
 	if err != nil {
@@ -241,8 +243,8 @@ func TestControllerNavigateMissingURL(t *testing.T) {
 	defer ctrl.Stop()
 
 	cmd := CommandMessage{
-		Action: ActionNavigate,
-		URL:    "",
+		Event: EventNavigate,
+		URL:   "",
 	}
 	evt, err := event.NewMessageEvent("remoteClient", "display01", cmd)
 	if err != nil {
@@ -275,7 +277,7 @@ func TestControllerGetURLSuccess(t *testing.T) {
 	defer ctrl.Stop()
 
 	cmd := CommandMessage{
-		Action: ActionGetURL,
+		Event: EventGetURL,
 	}
 	evt, err := event.NewMessageEvent("remoteClient", "display01", cmd)
 	if err != nil {
@@ -293,7 +295,7 @@ func TestControllerGetURLSuccess(t *testing.T) {
 	if err := mockCl.sentEvents[0].UnmarshalData(&urlResp); err != nil {
 		t.Fatalf("failed to unmarshal URLResponse: %v", err)
 	}
-	if urlResp.Action != ActionGetURLResponse || urlResp.URL != "https://example.com/current-view" {
+	if urlResp.Event != EventGetURLResponse || urlResp.URL != "https://example.com/current-view" {
 		t.Errorf("unexpected URLResponse: %+v", urlResp)
 	}
 }
@@ -308,7 +310,7 @@ func TestControllerGetURLError(t *testing.T) {
 	defer ctrl.Stop()
 
 	cmd := CommandMessage{
-		Action: ActionGetURL,
+		Event: EventGetURL,
 	}
 	evt, err := event.NewMessageEvent("remoteClient", "display01", cmd)
 	if err != nil {
@@ -341,7 +343,7 @@ func TestControllerGetScreenshotSuccess(t *testing.T) {
 	defer ctrl.Stop()
 
 	cmd := CommandMessage{
-		Action:  ActionGetScreenshot,
+		Event:   EventGetScreenshot,
 		Format:  "jpeg",
 		Quality: 80,
 	}
@@ -391,7 +393,7 @@ func TestControllerGetScreenshotError(t *testing.T) {
 	defer ctrl.Stop()
 
 	cmd := CommandMessage{
-		Action: ActionGetScreenshot,
+		Event: EventGetScreenshot,
 	}
 	evt, err := event.NewMessageEvent("remoteClient", "display01", cmd)
 	if err != nil {
@@ -424,7 +426,7 @@ func TestControllerInvalidAction(t *testing.T) {
 	defer ctrl.Stop()
 
 	cmd := CommandMessage{
-		Action: "unknown_command",
+		Event: "unknown_command",
 	}
 	evt, err := event.NewMessageEvent("remoteClient", "display01", cmd)
 	if err != nil {
@@ -458,16 +460,16 @@ func TestControllerIgnoreSelfAndResponseMessages(t *testing.T) {
 
 	// 1. Self message
 	selfCmd := CommandMessage{
-		Action: ActionNavigate,
-		URL:    "https://example.com/self",
+		Event: EventNavigate,
+		URL:   "https://example.com/self",
 	}
 	selfEvt, _ := event.NewMessageEvent("display01", "display01", selfCmd)
 	mockCl.EmitMessage(selfEvt)
 
 	// 2. Response message
 	respCmd := CommandMessage{
-		Action: ActionNavigateResponse,
-		URL:    "https://example.com/resp",
+		Event: EventNavigateResponse,
+		URL:   "https://example.com/resp",
 	}
 	respEvt, _ := event.NewMessageEvent("otherClient", "display01", respCmd)
 	mockCl.EmitMessage(respEvt)
@@ -499,8 +501,8 @@ func TestControllerWithOnSend(t *testing.T) {
 	defer ctrl.Stop()
 
 	cmd := CommandMessage{
-		Action: ActionNavigate,
-		URL:    "https://example.com/welcome",
+		Event: EventNavigate,
+		URL:   "https://example.com/welcome",
 	}
 	evt, err := event.NewMessageEvent("remoteClient", "display01", cmd)
 	if err != nil {
@@ -517,5 +519,125 @@ func TestControllerWithOnSend(t *testing.T) {
 	}
 	if interceptedEvents[0].Token != "tok-navigate-1" {
 		t.Errorf("expected token tok-navigate-1, got %s", interceptedEvents[0].Token)
+	}
+}
+
+func TestController_GetStatus_Success(t *testing.T) {
+	logger := newTestLogger()
+	mockCl := newMockClient("display01")
+	mockBr := &mockBrowser{}
+
+	now := time.Now().UTC()
+	statusCalled := false
+	mockProvider := func() rest.DashboardData {
+		statusCalled = true
+		return rest.DashboardData{
+			ClientName: "display01",
+			WSBroker:   "wss://broker.example.com",
+			Channels:   []string{"display", "default"},
+			Addr:       "localhost:8080",
+			ExtAddr:    "http://localhost:8080",
+			TLSType:    "none",
+			Hostname:   "display-host",
+			OS:         "linux",
+			Arch:       "amd64",
+			GoVersion:  "go1.22",
+			Uptime:     "10m",
+			StartTime:  now,
+			BrowserConfig: rest.BrowserInfo{
+				Kiosk:    true,
+				Headless: false,
+				Width:    1920,
+				Height:   1080,
+				Address:  "127.0.0.1:9222",
+			},
+			Messages: []rest.WSMessage{
+				{Timestamp: now, Direction: "in", Type: "message", Source: "sender"},
+			},
+		}
+	}
+
+	ctrl := NewController(mockCl, mockBr, logger, WithStatusProvider(mockProvider))
+	ctrl.Start()
+	defer ctrl.Stop()
+
+	cmd := CommandMessage{
+		Event: EventGetStatus,
+	}
+	evt, err := event.NewMessageEvent("remoteClient", "display01", cmd)
+	if err != nil {
+		t.Fatalf("failed to create event: %v", err)
+	}
+	evt.Token = "tok-status-999"
+
+	mockCl.EmitMessage(evt)
+
+	if !statusCalled {
+		t.Fatalf("expected status provider to be called")
+	}
+
+	mockCl.mu.Lock()
+	defer mockCl.mu.Unlock()
+	if len(mockCl.sentEvents) != 1 {
+		t.Fatalf("expected 1 response event, got %d", len(mockCl.sentEvents))
+	}
+	sentEvt := mockCl.sentEvents[0]
+	if sentEvt.Target != "remoteClient" || sentEvt.Token != "tok-status-999" {
+		t.Errorf("unexpected response routing: target=%s token=%s", sentEvt.Target, sentEvt.Token)
+	}
+	var resp StatusResponse
+	if err := sentEvt.UnmarshalData(&resp); err != nil {
+		t.Fatalf("failed to unmarshal StatusResponse: %v", err)
+	}
+	if resp.Event != EventGetStatusResponse || resp.Status != "ok" {
+		t.Errorf("unexpected StatusResponse event/status: %+v", resp)
+	}
+	if resp.Data == nil {
+		t.Fatalf("expected non-nil Data in StatusResponse")
+	}
+	if resp.Data.ClientName != "display01" || resp.Data.Hostname != "display-host" || resp.Data.OS != "linux" {
+		t.Errorf("unexpected telemetry data in StatusResponse: %+v", resp.Data)
+	}
+	if resp.Data.BrowserConfig.Kiosk != true || resp.Data.BrowserConfig.Width != 1920 {
+		t.Errorf("unexpected browser config in telemetry: %+v", resp.Data.BrowserConfig)
+	}
+	// Verify rolling message log is stripped
+	if len(resp.Data.Messages) != 0 {
+		t.Errorf("expected Messages slice to be stripped/nil, got %d items", len(resp.Data.Messages))
+	}
+}
+
+func TestController_GetStatus_NoProvider(t *testing.T) {
+	logger := newTestLogger()
+	mockCl := newMockClient("display01")
+	mockBr := &mockBrowser{}
+
+	ctrl := NewController(mockCl, mockBr, logger)
+	ctrl.Start()
+	defer ctrl.Stop()
+
+	cmd := CommandMessage{
+		Event: EventGetStatus,
+	}
+	evt, err := event.NewMessageEvent("remoteClient", "display01", cmd)
+	if err != nil {
+		t.Fatalf("failed to create event: %v", err)
+	}
+	evt.Token = "tok-noprov"
+
+	mockCl.EmitMessage(evt)
+
+	mockCl.mu.Lock()
+	defer mockCl.mu.Unlock()
+	if len(mockCl.sentEvents) != 1 {
+		t.Fatalf("expected 1 response event, got %d", len(mockCl.sentEvents))
+	}
+	sentEvt := mockCl.sentEvents[0]
+	var resp StatusResponse
+	if err := sentEvt.UnmarshalData(&resp); err != nil {
+		t.Fatalf("failed to unmarshal StatusResponse: %v", err)
+	}
+	if resp.Status != "error" || resp.Error != "status provider not configured" {
+		t.Errorf("expected error status for unconfigured provider, got %+v", resp)
 	}
 }

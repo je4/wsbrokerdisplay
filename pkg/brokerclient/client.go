@@ -16,6 +16,7 @@ import (
 	"github.com/je4/utils/v2/pkg/zLogger"
 	rawclient "github.com/je4/wsbrokerclient/pkg/client"
 	"github.com/je4/wsbrokerclient/pkg/event"
+	"github.com/je4/wsbrokerdisplay/pkg/rest"
 )
 
 // BrokerClient abstracts the underlying WSBroker client transport operations.
@@ -190,6 +191,7 @@ func (c *Client) Navigate(ctx context.Context, target string, targetURL string, 
 
 	cmd := CommandMessage{
 		Action:   ActionNavigate,
+		Event:    "display:navigate",
 		URL:      targetURL,
 		Selector: selector,
 	}
@@ -230,6 +232,7 @@ func (c *Client) GetURL(ctx context.Context, target string) (string, error) {
 
 	cmd := CommandMessage{
 		Action: ActionGetURL,
+		Event:  "display:geturl",
 	}
 
 	evt, err := event.NewMessageEvent(c.raw.ClientName(), target, cmd)
@@ -279,6 +282,7 @@ func (c *Client) GetScreenshot(ctx context.Context, target string, opts ...Scree
 
 	cmd := CommandMessage{
 		Action:  ActionGetScreenshot,
+		Event:   "display:getscreenshot",
 		Format:  opt.Format,
 		Quality: opt.Quality,
 	}
@@ -321,10 +325,56 @@ func (c *Client) GetScreenshot(ctx context.Context, target string, opts ...Scree
 	}
 }
 
+// GetStatus queries the telemetry dashboard data of the target display client synchronously.
+func (c *Client) GetStatus(ctx context.Context, target string) (*rest.DashboardData, error) {
+	token := generateToken()
+	ch := c.registerWaiter(token)
+	defer c.unregisterWaiter(token)
+
+	cmd := CommandMessage{
+		Action: ActionGetStatus,
+		Event:  "display:getstatus",
+	}
+
+	evt, err := event.NewMessageEvent(c.raw.ClientName(), target, cmd)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create getstatus command event")
+	}
+	evt.Token = token
+
+	if err := c.raw.Send(ctx, evt); err != nil {
+		return nil, errors.Wrap(err, "failed to send getstatus command")
+	}
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case respEvt := <-ch:
+		if respEvt == nil {
+			return nil, errors.New("client closed before response received")
+		}
+		var resp StatusResponse
+		if err := respEvt.UnmarshalData(&resp); err != nil {
+			return nil, errors.Wrap(err, "failed to unmarshal getstatus response")
+		}
+		if resp.Status != "ok" && resp.Error != "" {
+			return nil, errors.Errorf("getstatus error: %s", resp.Error)
+		}
+		if resp.Error != "" {
+			return nil, errors.Errorf("getstatus error: %s", resp.Error)
+		}
+		if resp.Data == nil {
+			return nil, errors.New("getstatus response missing data payload")
+		}
+		return resp.Data, nil
+	}
+}
+
 // SendNavigate transmits an asynchronous (fire-and-forget) navigation command.
 func (c *Client) SendNavigate(ctx context.Context, target string, targetURL string, waitSelector string, token ...string) error {
 	cmd := CommandMessage{
 		Action:   ActionNavigate,
+		Event:    "display:navigate",
 		URL:      targetURL,
 		Selector: waitSelector,
 	}
@@ -342,6 +392,7 @@ func (c *Client) SendNavigate(ctx context.Context, target string, targetURL stri
 func (c *Client) SendGetURL(ctx context.Context, target string, token ...string) error {
 	cmd := CommandMessage{
 		Action: ActionGetURL,
+		Event:  "display:geturl",
 	}
 	evt, err := event.NewMessageEvent(c.raw.ClientName(), target, cmd)
 	if err != nil {
@@ -357,12 +408,29 @@ func (c *Client) SendGetURL(ctx context.Context, target string, token ...string)
 func (c *Client) SendGetScreenshot(ctx context.Context, target string, format string, quality int, token ...string) error {
 	cmd := CommandMessage{
 		Action:  ActionGetScreenshot,
+		Event:   "display:getscreenshot",
 		Format:  format,
 		Quality: quality,
 	}
 	evt, err := event.NewMessageEvent(c.raw.ClientName(), target, cmd)
 	if err != nil {
 		return errors.Wrap(err, "failed to create getscreenshot command event")
+	}
+	if len(token) > 0 && token[0] != "" {
+		evt.Token = token[0]
+	}
+	return c.raw.Send(ctx, evt)
+}
+
+// SendGetStatus transmits an asynchronous (fire-and-forget) getstatus command.
+func (c *Client) SendGetStatus(ctx context.Context, target string, token ...string) error {
+	cmd := CommandMessage{
+		Action: ActionGetStatus,
+		Event:  "display:getstatus",
+	}
+	evt, err := event.NewMessageEvent(c.raw.ClientName(), target, cmd)
+	if err != nil {
+		return errors.Wrap(err, "failed to create getstatus command event")
 	}
 	if len(token) > 0 && token[0] != "" {
 		evt.Token = token[0]

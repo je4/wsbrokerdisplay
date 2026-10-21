@@ -143,6 +143,7 @@ func main() {
 		display.WithOnSend(func(evt *event.Event) {
 			msgLog.AddEvent("out", evt)
 		}),
+		display.WithStatusProvider(dataProvider),
 	)
 	dispCtrl.Start()
 

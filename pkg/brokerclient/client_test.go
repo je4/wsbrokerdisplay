@@ -10,6 +10,7 @@ import (
 	"github.com/je4/utils/v2/pkg/zLogger"
 	rawclient "github.com/je4/wsbrokerclient/pkg/client"
 	"github.com/je4/wsbrokerclient/pkg/event"
+	"github.com/je4/wsbrokerdisplay/pkg/rest"
 	"github.com/rs/zerolog"
 )
 
@@ -221,6 +222,28 @@ func TestResponseSerialization(t *testing.T) {
 	if parsedShot.Status != "error" || parsedShot.Error != "context deadline exceeded" {
 		t.Errorf("unexpected ScreenshotResponse: %+v", parsedShot)
 	}
+
+	// StatusResponse
+	statResp := StatusResponse{
+		Action: ActionGetStatusResponse,
+		Status: "ok",
+		Data: &rest.DashboardData{
+			ClientName: "disp-101",
+			Hostname:   "node-alpha",
+			OS:         "linux",
+		},
+	}
+	statData, err := json.Marshal(statResp)
+	if err != nil {
+		t.Fatalf("failed to marshal StatusResponse: %v", err)
+	}
+	var parsedStat StatusResponse
+	if err := json.Unmarshal(statData, &parsedStat); err != nil {
+		t.Fatalf("failed to unmarshal StatusResponse: %v", err)
+	}
+	if parsedStat.Status != "ok" || parsedStat.Data == nil || parsedStat.Data.ClientName != "disp-101" {
+		t.Errorf("unexpected StatusResponse: %+v", parsedStat)
+	}
 }
 
 func TestNavigateMethod(t *testing.T) {
@@ -376,6 +399,86 @@ func TestGetScreenshotErrorResponse(t *testing.T) {
 	}
 }
 
+func TestGetStatusMethod(t *testing.T) {
+	logger := newTestLogger()
+	mock := newMockBrokerClient("controller01")
+
+	c, err := New(mock, logger)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	mock.onSend = func(ctx context.Context, evt *event.Event) error {
+		if evt != nil && evt.Token != "" {
+			var cmd CommandMessage
+			if err := evt.UnmarshalData(&cmd); err == nil && (cmd.Action == ActionGetStatus || cmd.Event == "display:getstatus") {
+				resp := StatusResponse{
+					Event:  "display:getstatus_response",
+					Action: ActionGetStatusResponse,
+					Status: "ok",
+					Data: &rest.DashboardData{
+						ClientName: "display01",
+						Hostname:   "node-display",
+						OS:         "linux",
+						Arch:       "amd64",
+						Uptime:     "45m",
+					},
+				}
+				respEvt, err := event.NewMessageEvent("display01", evt.Source, resp)
+				if err != nil {
+					t.Fatalf("NewMessageEvent failed: %v", err)
+				}
+				respEvt.Token = evt.Token
+				go mock.EmitEvent(respEvt)
+			}
+		}
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	data, err := c.GetStatus(ctx, "display01")
+	if err != nil {
+		t.Fatalf("GetStatus failed: %v", err)
+	}
+	if data == nil || data.ClientName != "display01" || data.Hostname != "node-display" {
+		t.Errorf("unexpected telemetry dashboard data: %+v", data)
+	}
+}
+
+func TestGetStatusErrorResponse(t *testing.T) {
+	logger := newTestLogger()
+	mock := newMockBrokerClient("controller01")
+
+	c, err := New(mock, logger)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	mock.onSend = func(ctx context.Context, evt *event.Event) error {
+		if evt != nil && evt.Token != "" {
+			resp := StatusResponse{
+				Action: ActionGetStatusResponse,
+				Status: "error",
+				Error:  "status provider not configured",
+			}
+			respEvt, _ := event.NewMessageEvent("display01", evt.Source, resp)
+			respEvt.Token = evt.Token
+			go mock.EmitEvent(respEvt)
+		}
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err = c.GetStatus(ctx, "display01")
+	if err == nil {
+		t.Fatalf("expected error from failed getstatus, got nil")
+	}
+}
+
 func TestAsyncSendMethods(t *testing.T) {
 	logger := newTestLogger()
 	mock := newMockBrokerClient("controller01")
@@ -402,13 +505,18 @@ func TestAsyncSendMethods(t *testing.T) {
 		t.Errorf("SendGetScreenshot failed: %v", err)
 	}
 
-	mock.mu.Lock()
-	defer mock.mu.Unlock()
-	if len(mock.sentEvents) != 3 {
-		t.Fatalf("expected 3 captured events, got %d", len(mock.sentEvents))
+	// SendGetStatus
+	if err := c.SendGetStatus(ctx, "display01", "tok4"); err != nil {
+		t.Errorf("SendGetStatus failed: %v", err)
 	}
 
-	if mock.sentEvents[0].Token != "tok1" || mock.sentEvents[1].Token != "tok2" || mock.sentEvents[2].Token != "tok3" {
+	mock.mu.Lock()
+	defer mock.mu.Unlock()
+	if len(mock.sentEvents) != 4 {
+		t.Fatalf("expected 4 captured events, got %d", len(mock.sentEvents))
+	}
+
+	if mock.sentEvents[0].Token != "tok1" || mock.sentEvents[1].Token != "tok2" || mock.sentEvents[2].Token != "tok3" || mock.sentEvents[3].Token != "tok4" {
 		t.Errorf("unexpected tokens in captured events")
 	}
 }

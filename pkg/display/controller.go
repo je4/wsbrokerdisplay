@@ -16,6 +16,7 @@ import (
 	"github.com/je4/wsbrokerclient/pkg/client"
 	"github.com/je4/wsbrokerclient/pkg/event"
 	"github.com/je4/wsbrokerdisplay/pkg/browser"
+	"github.com/je4/wsbrokerdisplay/pkg/rest"
 )
 
 // BrowserInterface represents browser actions required by the display coordinator.
@@ -46,13 +47,14 @@ type ClientInterface interface {
 // It manages event subscriptions, deserializes command envelopes, dispatches
 // operations to the browser controller, and returns structured responses.
 type Controller struct {
-	client       ClientInterface
-	browser      BrowserInterface
-	logger       zLogger.ZLogger
-	timeout      time.Duration
-	unsubscribes []client.UnsubscribeFunc
-	onSend       func(evt *event.Event)
-	mu           sync.Mutex
+	client         ClientInterface
+	browser        BrowserInterface
+	logger         zLogger.ZLogger
+	timeout        time.Duration
+	unsubscribes   []client.UnsubscribeFunc
+	onSend         func(evt *event.Event)
+	statusProvider func() rest.DashboardData
+	mu             sync.Mutex
 }
 
 // Option configures the Controller.
@@ -71,6 +73,13 @@ func WithTimeout(d time.Duration) Option {
 func WithOnSend(fn func(evt *event.Event)) Option {
 	return func(c *Controller) {
 		c.onSend = fn
+	}
+}
+
+// WithStatusProvider sets a callback for providing live display telemetry.
+func WithStatusProvider(fn func() rest.DashboardData) Option {
+	return func(c *Controller) {
+		c.statusProvider = fn
 	}
 }
 
@@ -129,8 +138,13 @@ func (c *Controller) HandleEvent(evt *event.Event) {
 		return
 	}
 
+	eventName := cmd.Event
+	if eventName == "" {
+		eventName = cmd.Action
+	}
+
 	// Ignore empty actions or response messages sent over channels
-	if cmd.Action == "" || strings.HasSuffix(cmd.Action, "_response") {
+	if eventName == "" || strings.HasSuffix(eventName, "_response") {
 		return
 	}
 
@@ -142,28 +156,54 @@ func (c *Controller) HandleEvent(evt *event.Event) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
-	switch cmd.Action {
-	case ActionNavigate:
+	switch eventName {
+	case EventNavigate, "navigate":
 		c.handleNavigate(ctx, target, evt.Token, cmd)
-	case ActionGetURL:
+	case EventGetURL, "geturl":
 		c.handleGetURL(ctx, target, evt.Token)
-	case ActionGetScreenshot:
+	case EventGetScreenshot, "getscreenshot":
 		c.handleGetScreenshot(ctx, target, evt.Token, cmd)
+	case EventGetStatus, "getstatus":
+		c.handleGetStatus(ctx, target, evt.Token)
 	default:
-		c.logger.Warn().Str("action", cmd.Action).Msg("unknown command action received")
+		c.logger.Warn().Str("Event", eventName).Msg("unknown command Event received")
 		_ = c.sendResponse(ctx, target, NavigateResponse{
-			Action: "error",
+			Event:  "error",
 			Status: "error",
-			Error:  fmt.Sprintf("unknown action '%s'", cmd.Action),
+			Error:  fmt.Sprintf("unknown Event '%s'", eventName),
 		}, evt.Token)
 	}
+}
+
+// handleGetStatus retrieves the live display telemetry from the status provider,
+// strips the message log, and transmits the response back to the requester.
+func (c *Controller) handleGetStatus(ctx context.Context, target, token string) {
+	if c.statusProvider == nil {
+		c.logger.Warn().Msg("status provider not configured")
+		_ = c.sendResponse(ctx, target, StatusResponse{
+			Event:  EventGetStatusResponse,
+			Status: "error",
+			Error:  "status provider not configured",
+		}, token)
+		return
+	}
+
+	data := c.statusProvider()
+	data.Messages = nil // explicitly strip message log to keep payload lightweight
+
+	c.logger.Info().Str("client", data.ClientName).Msg("status retrieved successfully")
+	_ = c.sendResponse(ctx, target, StatusResponse{
+		Event:  EventGetStatusResponse,
+		Status: "ok",
+		Data:   &data,
+	}, token)
 }
 
 // handleNavigate executes a browser navigation command and returns the navigation status.
 func (c *Controller) handleNavigate(ctx context.Context, target, token string, cmd CommandMessage) {
 	if cmd.URL == "" {
 		_ = c.sendResponse(ctx, target, NavigateResponse{
-			Action: ActionNavigateResponse,
+			Event:  EventNavigateResponse,
 			Status: "error",
 			Error:  "missing URL parameter",
 		}, token)
@@ -180,7 +220,7 @@ func (c *Controller) handleNavigate(ctx context.Context, target, token string, c
 	if err != nil {
 		c.logger.Error().Err(err).Str("url", cmd.URL).Msg("failed to navigate")
 		_ = c.sendResponse(ctx, target, NavigateResponse{
-			Action: ActionNavigateResponse,
+			Event:  EventNavigateResponse,
 			Status: "error",
 			URL:    cmd.URL,
 			Error:  err.Error(),
@@ -190,7 +230,7 @@ func (c *Controller) handleNavigate(ctx context.Context, target, token string, c
 
 	c.logger.Info().Str("url", cmd.URL).Msg("navigated successfully")
 	_ = c.sendResponse(ctx, target, NavigateResponse{
-		Action: ActionNavigateResponse,
+		Event:  EventNavigateResponse,
 		Status: "ok",
 		URL:    cmd.URL,
 	}, token)
@@ -202,16 +242,16 @@ func (c *Controller) handleGetURL(ctx context.Context, target, token string) {
 	if err != nil {
 		c.logger.Error().Err(err).Msg("failed to get current URL")
 		_ = c.sendResponse(ctx, target, URLResponse{
-			Action: ActionGetURLResponse,
-			Error:  err.Error(),
+			Event: EventGetURLResponse,
+			Error: err.Error(),
 		}, token)
 		return
 	}
 
 	c.logger.Info().Str("url", currentURL).Msg("current URL retrieved")
 	_ = c.sendResponse(ctx, target, URLResponse{
-		Action: ActionGetURLResponse,
-		URL:    currentURL,
+		Event: EventGetURLResponse,
+		URL:   currentURL,
 	}, token)
 }
 
@@ -238,7 +278,7 @@ func (c *Controller) handleGetScreenshot(ctx context.Context, target, token stri
 	if err != nil {
 		c.logger.Error().Err(err).Msg("failed to capture screenshot")
 		_ = c.sendResponse(ctx, target, ScreenshotResponse{
-			Action: ActionScreenshotResponse,
+			Event:  EventScreenshotResponse,
 			Status: "error",
 			Error:  err.Error(),
 		}, token)
