@@ -37,6 +37,7 @@ type DisplayConfig struct {
 	WSBroker    string         `toml:"wsbroker"`
 	Channels    []string       `toml:"channels"`
 	MaxMessages int            `toml:"max_messages"`
+	ReadLimit   int64          `toml:"read_limit"`
 	NTP         NTPConfig      `toml:"ntp"`
 	Browser     browser.Config `toml:"browser"`
 	ClientTLS   loader.Config  `toml:"clienttls"`

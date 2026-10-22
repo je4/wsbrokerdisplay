@@ -109,6 +109,7 @@ extaddr = "http://127.0.0.1:9090"
 name = "custom_display"
 wsbroker = "wss://broker.example.com:443"
 channels = ["alerts", "status"]
+read_limit = 33554432
 
 [browser]
 address = "127.0.0.1:9222"
@@ -150,6 +151,10 @@ type = "file"
 
 	if len(conf.Channels) != 2 || conf.Channels[0] != "alerts" || conf.Channels[1] != "status" {
 		t.Errorf("unexpected channels: %v", conf.Channels)
+	}
+
+	if conf.ReadLimit != 33554432 {
+		t.Errorf("expected ReadLimit 33554432, got %d", conf.ReadLimit)
 	}
 
 	if conf.Browser.Address != "127.0.0.1:9222" {

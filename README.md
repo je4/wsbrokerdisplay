@@ -13,11 +13,13 @@ A high-performance, real-time display and monitoring service with automated Chro
   - Generic type-safe JavaScript evaluation (`EvaluateGeneric[T]`, `EvaluateFunction[T]`).
   - Native DOM & coordinate-based mouse interactions with visibility polling.
   - Real-time console logging interception (`EventConsoleAPICalled`).
-- **WebSocket Remote Browser Control (`pkg/display` & `pkg/brokerclient`)**:
+- **WebSocket Remote Browser Control (`pkg/display` & `wsbrokerdisplayclient`)**:
   - Real-time remote browser management over encrypted WSBroker connections.
-  - Navigation command (`navigate`) with optional DOM selector readiness synchronization.
-  - Active URL inspection command (`geturl`).
-  - Bandwidth-efficient bounded screenshot command (`getscreenshot`, max 800x600 resolution) delivered via binary file events (`event.TypeFile`).
+  - Dedicated high-level Go client library (`github.com/je4/wsbrokerdisplayclient/pkg/displayclient`) with synchronous request-reply and asynchronous fire-and-forget APIs communicating exclusively via WebSocket.
+  - Navigation command (`navigate` / `display:navigate`) with optional DOM selector readiness synchronization.
+  - Active URL inspection command (`geturl` / `display:geturl`).
+  - Bandwidth-efficient bounded screenshot command (`getscreenshot` / `display:getscreenshot`, max 800x600 resolution) delivered via binary file events (`event.TypeFile`).
+  - Telemetry and status query command (`getstatus` / `display:getstatus`).
   - Deterministic correlation tokens and request-reply routing.
 - **REST Service (`pkg/rest`)**:
   - Localhost-restricted HTTP API endpoints.
@@ -35,7 +37,7 @@ A high-performance, real-time display and monitoring service with automated Chro
 ```mermaid
 graph TD
     subgraph Remote["Remote Controller / Admin"]
-        Sender["Remote App / Dashboard using pkg/brokerclient"]
+        Sender["Remote App / Dashboard using wsbrokerdisplayclient"]
     end
 
     subgraph BrokerSystem["WSBroker Infrastructure"]
@@ -214,7 +216,7 @@ wsbrokerdisplay/
 │   │   ├── README.md            # Browser package documentation
 │   │   └── screenshot.go        # Viewport/full-page capture & max dimension bounding
 │   ├── brokerclient/
-│   │   ├── client.go            # High-level remote browser control client SDK
+│   │   ├── client.go            # Prototype remote browser control client SDK
 │   │   ├── client_test.go       # Remote control API & serialization unit tests
 │   │   ├── models.go            # Command & response message payload models
 │   │   └── README.md            # Client SDK package documentation

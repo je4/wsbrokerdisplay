@@ -57,6 +57,9 @@ func main() {
 		rawclient.WithAutoReconnect(true),
 		rawclient.WithLogger(logger),
 	}
+	if conf.ReadLimit > 0 {
+		rawOpts = append(rawOpts, rawclient.WithReadLimit(conf.ReadLimit))
+	}
 	if len(conf.Channels) > 0 {
 		rawOpts = append(rawOpts, rawclient.WithInitialChannels(conf.Channels...))
 	}
