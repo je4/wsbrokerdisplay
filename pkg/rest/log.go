@@ -63,21 +63,7 @@ func (ml *MessageLog) AddEvent(direction string, evt *event.Event) {
 	if evt == nil {
 		return
 	}
-	dataStr := ""
-	if str, err := evt.GetStringData(); err == nil && str != "" {
-		dataStr = str
-	} else if len(evt.Data) > 0 {
-		dataStr = string(evt.Data)
-	}
-	ml.Add(WSMessage{
-		Timestamp: time.Now(),
-		Direction: direction,
-		Type:      string(evt.Type),
-		Source:    evt.Source,
-		Target:    evt.Target,
-		Token:     evt.Token,
-		Data:      dataStr,
-	})
+	ml.Add(event.NewWSMessage(direction, evt))
 }
 
 // GetAll returns a copy of all logged messages in reverse chronological order (newest first).

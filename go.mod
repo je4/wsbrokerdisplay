@@ -5,7 +5,6 @@ go 1.27.2
 require (
 	emperror.dev/errors v0.8.1
 	github.com/BurntSushi/toml v1.6.0
-	github.com/beevik/ntp v1.6.0
 	github.com/chromedp/cdproto v0.158.1
 	github.com/chromedp/chromedp v0.21.0
 	github.com/disintegration/imaging v1.6.2
@@ -22,6 +21,7 @@ require (
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
+	github.com/beevik/ntp v1.6.0 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.4 // indirect
 	github.com/bytedance/sonic/loader v0.5.2 // indirect

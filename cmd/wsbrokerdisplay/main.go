@@ -15,9 +15,9 @@ import (
 	"github.com/je4/utils/v2/pkg/zLogger"
 	rawclient "github.com/je4/wsbrokerclient/pkg/client"
 	"github.com/je4/wsbrokerclient/pkg/event"
+	"github.com/je4/wsbrokerclient/pkg/ntp"
 	"github.com/je4/wsbrokerdisplay/pkg/browser"
 	"github.com/je4/wsbrokerdisplay/pkg/display"
-	"github.com/je4/wsbrokerdisplay/pkg/ntp"
 	"github.com/je4/wsbrokerdisplay/pkg/rest"
 	"github.com/rs/zerolog"
 )

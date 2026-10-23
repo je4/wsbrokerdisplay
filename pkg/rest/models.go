@@ -3,19 +3,12 @@ package rest
 import (
 	"time"
 
-	"github.com/je4/wsbrokerdisplay/pkg/ntp"
+	"github.com/je4/wsbrokerclient/pkg/event"
+	"github.com/je4/wsbrokerclient/pkg/ntp"
 )
 
 // WSMessage represents a logged WebSocket message event.
-type WSMessage struct {
-	Timestamp time.Time `json:"timestamp"`
-	Direction string    `json:"direction"` // "in" (received) or "out" (sent)
-	Type      string    `json:"type"`      // "message", "file", "ping", "pong", "attach", etc.
-	Source    string    `json:"source"`
-	Target    string    `json:"target,omitempty"`
-	Token     string    `json:"token,omitempty"`
-	Data      string    `json:"data,omitempty"`
-}
+type WSMessage = event.WSMessage
 
 // BrowserInfo contains details about the browser display configuration.
 type BrowserInfo struct {

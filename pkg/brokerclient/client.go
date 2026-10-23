@@ -110,6 +110,10 @@ func (c *Client) unregisterWaiter(token string) {
 
 // generateToken creates a cryptographically unique correlation token.
 func generateToken() string {
+	tok, err := rawclient.GenerateToken()
+	if err == nil && tok != "" {
+		return tok
+	}
 	b := make([]byte, 12)
 	_, _ = rand.Read(b)
 	return fmt.Sprintf("req_%d_%s", time.Now().UnixNano(), hex.EncodeToString(b))
