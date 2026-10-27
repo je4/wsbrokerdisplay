@@ -1,0 +1,70 @@
+// ==========================================================================
+// WSBroker Display SCSS Variables & Color System
+// Powered by DaisyUI Themes & Ambient Background Glassmorphism
+// ==========================================================================
+
+:root {
+    --bg-kiosk: #0b0f19;
+    --color-bg-body: hsl(var(--b1, 0 0% 100%));
+    --color-bg-image: url('../img/background.jpg');
+    --color-bg-overlay: linear-gradient(135deg, rgba(248, 250, 252, 0.72) 0%, rgba(241, 245, 249, 0.85) 100%);
+    --color-text-main: hsl(var(--bc, 215 28% 17%));
+    --color-text-muted: hsla(var(--bc, 215 28% 17%) / 0.65);
+    --color-text-dim: hsla(var(--bc, 215 28% 17%) / 0.45);
+    --color-border-subtle: hsla(var(--bc, 215 28% 17%) / 0.12);
+    --color-border-main: hsla(var(--bc, 215 28% 17%) / 0.20);
+
+    --color-header-bg: hsla(var(--b1, 0 0% 100%) / 0.75);
+    --color-footer-bg: hsla(var(--b1, 0 0% 100%) / 0.70);
+
+    --color-card-bg: hsla(var(--b1, 0 0% 100%) / 0.85);
+    --color-card-border: hsla(var(--bc, 215 28% 17%) / 0.12);
+    --color-panel-bg: hsla(var(--b1, 0 0% 100%) / 0.88);
+    --color-panel-border: hsla(var(--bc, 215 28% 17%) / 0.12);
+    --color-panel-toolbar-bg: hsla(var(--b2, 210 20% 98%) / 0.85);
+    --color-panel-toolbar-border: hsla(var(--bc, 215 28% 17%) / 0.12);
+
+    --color-btn-text: hsl(var(--bc, 215 28% 17%));
+    --color-btn-hover-bg: hsla(var(--bc, 215 28% 17%) / 0.08);
+
+    --color-badge-status-bg: hsla(var(--p, 230 74% 58%) / 0.12);
+    --color-badge-status-border: hsla(var(--p, 230 74% 58%) / 0.30);
+    --color-badge-status-text: hsl(var(--p, 230 74% 58%));
+
+    --color-sse-connected-bg: hsla(var(--su, 158 64% 52%) / 0.12);
+    --color-sse-connected-border: hsla(var(--su, 158 64% 52%) / 0.30);
+    --color-sse-connected-text: hsl(var(--su, 158 64% 52%));
+
+    --scrollbar-track: hsla(var(--b2, 210 20% 98%) / 0.6);
+    --scrollbar-thumb: hsla(var(--bc, 215 28% 17%) / 0.25);
+    --scrollbar-thumb-hover: hsla(var(--bc, 215 28% 17%) / 0.40);
+}
+
+.dark,
+[data-theme="dark"],
+[data-theme="synthwave"],
+[data-theme="halloween"],
+[data-theme="forest"],
+[data-theme="black"],
+[data-theme="luxury"],
+[data-theme="dracula"],
+[data-theme="business"],
+[data-theme="night"],
+[data-theme="coffee"],
+[data-theme="dim"],
+[data-theme="sunset"],
+[data-theme="abyss"] {
+    --color-bg-overlay: linear-gradient(135deg, rgba(15, 23, 42, 0.78) 0%, rgba(3, 7, 18, 0.88) 100%);
+    --color-header-bg: hsla(var(--b1, 220 18% 18%) / 0.75);
+    --color-footer-bg: hsla(var(--b1, 220 18% 18%) / 0.70);
+    --color-card-bg: hsla(var(--b1, 220 18% 18%) / 0.85);
+    --color-card-border: hsla(var(--bc, 220 13% 85%) / 0.15);
+    --color-panel-bg: hsla(var(--b1, 220 18% 18%) / 0.88);
+    --color-panel-border: hsla(var(--bc, 220 13% 85%) / 0.15);
+    --color-panel-toolbar-bg: hsla(var(--b2, 220 17% 14%) / 0.85);
+    --color-panel-toolbar-border: hsla(var(--bc, 220 13% 85%) / 0.15);
+
+    --scrollbar-track: hsla(var(--b2, 220 17% 14%) / 0.6);
+    --scrollbar-thumb: hsla(var(--bc, 220 13% 85%) / 0.25);
+    --scrollbar-thumb-hover: hsla(var(--bc, 220 13% 85%) / 0.40);
+}

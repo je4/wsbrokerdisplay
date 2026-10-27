@@ -1,6 +1,8 @@
 /**
- * WSBroker Display - Real-time Live Synchronized Clock and Telemetry Updater
+ * WSBroker Display - Real-time Live Synchronized Clock, Telemetry Updater & DaisyUI Theme Controller
  */
+import { initThemeSelector } from './modules/theme-selector.js';
+
 (function() {
     'use strict';
 
@@ -47,15 +49,16 @@
         }
     }
 
-    // Initialize offset from DOM
+    // Initialize clock and theme selector on DOMContentLoaded
     document.addEventListener('DOMContentLoaded', function() {
+        initThemeSelector();
         parseOffsetFromDOM();
         updateClock();
         setInterval(updateClock, 200);
     });
 
     // Re-parse NTP offset when HTMX swaps content
-    document.addEventListener('htmx:afterSwap', function(evt) {
+    document.addEventListener('htmx:afterSwap', function() {
         parseOffsetFromDOM();
     });
 

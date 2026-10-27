@@ -1,70 +1,90 @@
 <!DOCTYPE html>
-<html lang="de" class="dark" translate="no">
+<html lang="de" translate="no">
 <head>
     <meta charset="UTF-8">
     <meta name="google" content="notranslate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WSBroker Display - {{.ClientName}}</title>
-    <!-- Tailwind CSS & HTMX Integration -->
+    <!-- Automatic Theme & Dark / Light mode detection to prevent FOUC -->
+    <script src="/static/js/theme-init.js"></script>
+    <!-- Tailwind CSS, DaisyUI & HTMX 4 -->
     <link rel="stylesheet" href="/static/css/tailwind.min.css">
-    <script src="static/js/htmx-2.0.11.js"></script>
-    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/daisyui.min.css">
+    <script src="/static/js/htmx-4.0.js"></script>
+    <link rel="stylesheet" href="/static/scss/dashboard.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white p-4 sm:p-6 lg:p-8">
+<body class="app-body min-h-screen flex flex-col justify-between selection:bg-blue-600 selection:text-white p-4 sm:p-6 lg:p-8">
 
-    <!-- Header Bar -->
-    <header class="w-full max-w-7xl mx-auto flex flex-wrap items-center justify-between pb-6 mb-6 border-b border-gray-800/80 gap-4">
-        <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                </svg>
+    <!-- Header Bar with Navigation & Actions -->
+    <header class="navbar w-full max-w-7xl mx-auto flex flex-wrap items-center justify-between mb-6 app-header gap-4 p-0 min-h-0">
+        <div class="flex items-center space-x-3.5">
+            <!-- Dynamic Gradient Icon -->
+            <div class="w-11 h-11 rounded-xl bg-primary text-primary-content flex items-center justify-center shadow-lg shadow-primary/25 shrink-0">
+                <span class="app-icon icon-bolt w-6 h-6" aria-hidden="true"></span>
             </div>
+
             <div>
-                <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                <!-- Title & Status Badge -->
+                <h1 class="text-xl font-bold tracking-tight app-title flex items-center gap-2.5">
                     WSBroker Display
-                    <span class="text-xs font-normal px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">Kiosk Node</span>
+                    <span class="badge badge-sm badge-outline app-badge-status transition-all">Kiosk Node</span>
                 </h1>
-                <p class="text-xs text-gray-400 font-mono">Client ID: <span class="text-gray-200 font-medium">{{.ClientName}}</span></p>
+
+                <!-- Metadata Row -->
+                <p class="text-xs app-meta-text font-mono flex items-center gap-2">
+                    <span>Client: <strong>{{.ClientName}}</strong></span>
+                    {{if .WSBroker}}
+                    <span>&bull;</span>
+                    <span>Broker: <strong>{{.WSBroker}}</strong></span>
+                    {{end}}
+                </p>
             </div>
         </div>
 
+        <!-- Top Right Actions & Theme Selector -->
         <div class="flex items-center space-x-3">
-            <a href="/swagger/index.html" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-900 text-gray-300 hover:text-white hover:bg-gray-800 border border-gray-700/80 transition-colors inline-flex items-center gap-1.5">
-                <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
-                </svg>
-                Swagger API
+            <!-- Theme & Appearance Dialog Trigger Button -->
+            <button id="theme-dialog-btn" type="button" class="btn btn-sm btn-ghost app-btn flex items-center gap-1.5" title="Design &amp; Farbschema anpassen (DaisyUI Themes)" aria-haspopup="dialog" aria-controls="theme-modal-dialog">
+                <span class="app-icon icon-palette w-4 h-4 shrink-0" aria-hidden="true"></span>
+                <span class="hidden sm:inline text-xs font-semibold">Design</span>
+                <span id="theme-mode-indicator" class="badge badge-xs badge-outline font-mono text-[10px] uppercase">Auto</span>
+                <span id="theme-name-indicator" class="badge badge-xs badge-primary font-mono text-[10px]">corporate</span>
+            </button>
+
+            <!-- Swagger API Documentation Button -->
+            <a href="/swagger/index.html" class="btn btn-sm btn-ghost app-btn flex items-center gap-1.5" title="Swagger REST API Dokumentation">
+                <span class="app-icon icon-external-link w-3.5 h-3.5 shrink-0" aria-hidden="true"></span>
+                <span class="hidden sm:inline">Swagger API</span>
             </a>
-            <div class="flex items-center space-x-2 px-3 py-1.5 bg-emerald-950/60 border border-emerald-800/80 rounded-lg text-emerald-300 text-xs font-medium">
+
+            <!-- Controller Online Status Badge -->
+            <div class="badge badge-sm gap-2 px-3 py-2.5 app-sse-badge connected">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-indicator"></span>
-                <span>Controller Online</span>
+                <span class="font-medium text-emerald-400">Controller Online</span>
             </div>
         </div>
     </header>
 
     <!-- Main Content Area -->
-    <main class="w-full max-w-7xl mx-auto flex-1 flex flex-col justify-center space-y-8">
+    <main class="app-main">
         
-        <!-- Live NTP-Synchronized Clock Hero -->
-        <section class="text-center py-6 px-4 rounded-2xl bg-gradient-to-b from-gray-900/80 to-gray-950/80 border border-gray-800 shadow-2xl relative overflow-hidden">
-            <div class="absolute inset-0 bg-blue-600/5 blur-3xl pointer-events-none"></div>
-            
-            <div class="relative z-10 flex flex-col items-center">
-                <div id="ntp-status-badge" class="inline-flex items-center space-x-2 mb-2 px-3 py-1 rounded-full bg-gray-800/80 border border-gray-700/60 text-xs text-gray-300">
-                    <span class="w-2 h-2 rounded-full {{if .NTP.Synced}}bg-emerald-400{{else}}bg-amber-400{{end}}"></span>
+        <!-- Live NTP-Synchronized Clock Hero Panel -->
+        <section class="app-panel text-center py-6 px-4 relative overflow-hidden">
+            <div class="flex flex-col items-center relative z-10">
+                <div id="ntp-status-badge" class="inline-flex items-center space-x-2 mb-2 px-3 py-1 rounded-full badge {{if .NTP.Synced}}badge-success bg-emerald-500/10 text-emerald-400 border-emerald-500/30{{else}}badge-warning bg-amber-500/10 text-amber-400 border-amber-500/30{{end}} text-xs font-medium">
+                    <span class="w-2 h-2 rounded-full {{if .NTP.Synced}}bg-emerald-400 pulse-indicator{{else}}bg-amber-400{{end}}"></span>
                     <span>{{if .NTP.Synced}}NTP Synchronized (Offset: {{.NTP.OffsetString}}){{else}}Awaiting NTP Synchronization{{end}}</span>
                 </div>
 
                 <!-- Digital Clock Display -->
-                <div id="digital-clock" class="font-mono text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tight text-white clock-display my-2">
+                <div id="digital-clock" class="font-mono text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tight clock-display my-2">
                     --:--:--
                 </div>
 
-                <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-gray-400 mt-2">
-                    <span id="digital-date" class="font-medium text-gray-200">Loading date...</span>
-                    <span>•</span>
-                    <span id="digital-timezone" class="font-mono text-gray-400">UTC</span>
+                <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm app-meta-text mt-2">
+                    <span id="digital-date" class="font-medium">Lade Datum...</span>
+                    <span>&bull;</span>
+                    <span id="digital-timezone" class="font-mono">UTC</span>
                 </div>
             </div>
         </section>
@@ -77,18 +97,21 @@
     </main>
 
     <!-- Footer Bar -->
-    <footer class="w-full max-w-7xl mx-auto pt-6 mt-8 border-t border-gray-800/80 flex flex-wrap justify-between items-center text-xs text-gray-500 gap-4">
-        <div>
-            WSBroker Display &copy; 2026 &bull; High-precision kiosk display & telemetry controller
+    <footer class="footer w-full max-w-7xl mx-auto mt-6 app-footer flex flex-wrap justify-between items-center text-xs gap-4 p-0">
+        <div class="opacity-80">
+            WSBroker Display &copy; 2026 &bull; High-precision kiosk display &amp; telemetry controller
         </div>
-        <div class="flex items-center space-x-4 font-mono">
-            <span>REST API: <span class="text-gray-400">{{.Addr}}</span></span>
+        <div class="flex items-center space-x-4 font-mono opacity-80">
+            <span>REST API: <span class="server-addr">{{.Addr}}</span></span>
             <span>&bull;</span>
-            <span>Uptime: <span class="text-emerald-400">{{.Uptime}}</span></span>
+            <span>Uptime: <span class="text-emerald-400 font-semibold">{{.Uptime}}</span></span>
         </div>
     </footer>
 
-    <!-- Live Clock Script -->
-    <script src="/static/js/dashboard.js"></script>
+    <!-- DaisyUI Theme Dialog -->
+    {{template "theme_modal.gohtml" .}}
+
+    <!-- Interactive Script (Clock & Theme Controller) -->
+    <script type="module" src="/static/js/dashboard.js"></script>
 </body>
 </html>

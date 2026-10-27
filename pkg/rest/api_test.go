@@ -223,6 +223,17 @@ func TestDashboardAndStaticRoutes(t *testing.T) {
 			Width:    1920,
 			Height:   1080,
 		},
+		Messages: []WSMessage{
+			{
+				Timestamp: time.Now(),
+				Direction: "in",
+				Type:      "test",
+				Source:    "broker",
+				Target:    "display",
+				Token:     "tok123",
+				Data:      "Hello World",
+			},
+		},
 	}
 	data.NTP.Server = "pool.ntp.org"
 	data.NTP.Synced = true
@@ -283,26 +294,25 @@ func TestDashboardAndStaticRoutes(t *testing.T) {
 			t.Errorf("expected 200 for GET /dashboard/cards, got %d", w.Code)
 		}
 		body := w.Body.String()
-		t.Logf("cards body: %s", body)
-		if !strings.Contains(body, "Network Time (NTP)") {
-			t.Errorf("expected cards partial to contain 'Network Time (NTP)'")
+		if !strings.Contains(body, "Hello World") {
+			t.Errorf("expected cards partial to contain 'Hello World', got:\n%s", body)
 		}
 		if !strings.Contains(body, "1.234ms") {
 			t.Errorf("expected cards partial to contain offset '1.234ms'")
 		}
 	}
 
-	// 4. GET /static/css/dashboard.css
+	// 4. GET /static/scss/dashboard.css
 	{
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest(http.MethodGet, "/static/css/dashboard.css", nil)
+		req, _ := http.NewRequest(http.MethodGet, "/static/scss/dashboard.css", nil)
 		req.RemoteAddr = "127.0.0.1:12345"
 		ctrl.router.ServeHTTP(w, req)
 		if w.Code != http.StatusOK {
-			t.Errorf("expected 200 for GET /static/css/dashboard.css, got %d", w.Code)
+			t.Errorf("expected 200 for GET /static/scss/dashboard.css, got %d", w.Code)
 		}
 		if !strings.Contains(w.Body.String(), "--bg-kiosk") {
-			t.Errorf("expected CSS content in /static/css/dashboard.css")
+			t.Errorf("expected CSS content in /static/scss/dashboard.css")
 		}
 	}
 

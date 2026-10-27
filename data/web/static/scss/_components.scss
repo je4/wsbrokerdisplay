@@ -1,0 +1,219 @@
+// ==========================================================================
+// WSBroker Display Component Styles: Theme Selector, Panels, Metric Cards
+// ==========================================================================
+
+// Tailwind v4 Bridge Functions & Mixins
+@function tw-space($factor) {
+    @return calc(var(--spacing, 0.25rem) * #{$factor});
+}
+
+@mixin tw-blur($size: md) {
+    backdrop-filter: blur(var(--blur-#{$size}, 8px));
+    -webkit-backdrop-filter: blur(var(--blur-#{$size}, 8px));
+}
+
+@mixin tw-transition($props: (background-color, color, border-color, box-shadow, transform)) {
+    transition-property: $props;
+    transition-duration: var(--default-transition-duration, 150ms);
+    transition-timing-function: var(--default-transition-timing-function, cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+// Theme Modal Dialog & Theme Card Previews
+#theme-modal-dialog {
+    .modal-box {
+        width: min(94vw, 54rem) !important;
+        max-width: 54rem !important;
+        max-height: 92vh;
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+.theme-scroll-area {
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 22rem;
+    min-height: 12rem;
+    width: 100%;
+    scrollbar-gutter: stable;
+    padding-right: 0.25rem;
+}
+
+#theme-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.625rem;
+    width: 100%;
+
+    @media (max-width: 560px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.theme-card {
+    background-color: hsla(var(--b1) / 0.80);
+    border: 1px solid hsla(var(--bc) / 0.12);
+    border-radius: var(--rounded-box, 0.75rem);
+    padding: 0.625rem 0.75rem;
+    min-height: 4.25rem;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.15s ease-in-out;
+    cursor: pointer;
+    user-select: none;
+    box-sizing: border-box;
+
+    &:hover {
+        background-color: hsla(var(--b2) / 0.90);
+        border-color: hsla(var(--p) / 0.50);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    &.is-active {
+        background-color: hsla(var(--b2) / 0.95);
+        border-color: hsl(var(--p));
+        box-shadow: 0 0 0 2px hsla(var(--p) / 0.40);
+
+        .theme-check-icon {
+            display: inline-flex !important;
+        }
+    }
+}
+
+.theme-swatch-box {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+
+    .theme-swatch {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+    }
+}
+
+// App Panels & Containers
+.app-panel {
+    background-color: var(--color-panel-bg);
+    border: 1px solid var(--color-panel-border);
+    border-radius: var(--rounded-box, 1rem);
+    @include tw-blur(md);
+    box-shadow: var(--shadow-sm, 0 1px 3px 0 rgba(0, 0, 0, 0.05));
+}
+
+// Kiosk Grid & Metric Cards
+.kiosk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.metric-card {
+    background-color: var(--color-card-bg);
+    border: 1px solid var(--color-card-border);
+    border-radius: var(--rounded-box, 0.75rem);
+    @include tw-blur(md);
+    box-shadow: var(--shadow-sm, 0 1px 3px 0 rgba(0, 0, 0, 0.05));
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    }
+}
+
+.log-card {
+    margin-top: 1.5rem;
+}
+
+// Digital Clock Hero Display
+.clock-display {
+    text-shadow: 0 0 30px hsla(var(--p) / 0.45);
+    color: var(--color-text-main);
+}
+
+// Metric Typography Helpers
+.app-metric-label {
+    color: var(--color-text-dim);
+    font-weight: 500;
+}
+
+.app-metric-val {
+    color: var(--color-text-main);
+}
+
+// Icon Box Containers (Colored Backgrounds for Card Headers)
+@mixin app-icon-box($size: 2rem, $radius: var(--rounded-btn, 0.5rem)) {
+    width: $size;
+    height: $size;
+    border-radius: $radius;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    .app-icon,
+    img,
+    svg {
+        width: calc(#{$size} * 0.5);
+        height: calc(#{$size} * 0.5);
+        flex-shrink: 0;
+        display: block;
+    }
+}
+
+.app-icon-box-primary {
+    @include app-icon-box(2rem, 0.5rem);
+    background-color: hsla(var(--p) / 0.12);
+    border: 1px solid hsla(var(--p) / 0.25);
+    color: hsl(var(--p));
+}
+
+.app-icon-box-secondary {
+    @include app-icon-box(2rem, 0.5rem);
+    background-color: hsla(var(--s, var(--p)) / 0.12);
+    border: 1px solid hsla(var(--s, var(--p)) / 0.25);
+    color: hsl(var(--s, var(--p)));
+}
+
+.app-icon-box-accent {
+    @include app-icon-box(2rem, 0.5rem);
+    background-color: hsla(var(--a, var(--p)) / 0.12);
+    border: 1px solid hsla(var(--a, var(--p)) / 0.25);
+    color: hsl(var(--a, var(--p)));
+}
+
+.app-icon-box-info {
+    @include app-icon-box(2rem, 0.5rem);
+    background-color: hsla(var(--in, 198 93% 60%) / 0.12);
+    border: 1px solid hsla(var(--in, 198 93% 60%) / 0.25);
+    color: hsl(var(--in, 198 93% 60%));
+}
+
+// DaisyUI Theme Color Utilities
+.text-primary   { color: hsl(var(--p)) !important; }
+.text-secondary { color: hsl(var(--sf, var(--p))) !important; }
+.text-accent    { color: hsl(var(--af, var(--p))) !important; }
+.text-info      { color: hsl(var(--in)) !important; }
+.text-success   { color: hsl(var(--su)) !important; }
+.text-warning   { color: hsl(var(--wa)) !important; }
+.text-error     { color: hsl(var(--er)) !important; }
+
+.bg-primary   { background-color: hsl(var(--p)) !important; }
+.bg-secondary { background-color: hsl(var(--sf, var(--p))) !important; }
+.bg-accent    { background-color: hsl(var(--af, var(--p))) !important; }
+.bg-info      { background-color: hsl(var(--in)) !important; }
+.bg-success   { background-color: hsl(var(--su)) !important; }
+.bg-warning   { background-color: hsl(var(--wa)) !important; }
+.bg-error     { background-color: hsl(var(--er)) !important; }
+
+// SSE Connection Status Badge
+.app-sse-badge {
+    background-color: var(--color-sse-connected-bg);
+    border: 1px solid var(--color-sse-connected-border);
+    color: var(--color-sse-connected-text);
+}

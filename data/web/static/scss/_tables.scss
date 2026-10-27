@@ -1,0 +1,30 @@
+// ==========================================================================
+// WSBroker Display Table Styles: Message Log Table & Scroll Container
+// ==========================================================================
+
+.message-log-scroll {
+    overflow-y: auto;
+    overflow-x: auto;
+    max-height: 24rem;
+    min-height: 8rem;
+    border-radius: var(--rounded-box, 0.5rem);
+    border: 1px solid hsla(var(--bc) / 0.15);
+    background-color: hsla(var(--b1) / 0.50);
+    scroll-behavior: smooth;
+    display: block;
+    width: 100%;
+
+    table {
+        width: 100%;
+        min-width: 640px;
+        border-collapse: collapse;
+    }
+
+    thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: hsla(var(--b2) / 0.98);
+        border-bottom: 1px solid hsla(var(--bc) / 0.15);
+    }
+}

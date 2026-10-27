@@ -78,8 +78,47 @@ func main() {
 		maxMessages = 100
 	}
 	msgLog := rest.NewMessageLog(maxMessages)
+	msgLog.Add(rest.WSMessage{
+		Timestamp: time.Now(),
+		Direction: "system",
+		Type:      "init",
+		Source:    conf.Name,
+		Target:    conf.WSBroker,
+		Data:      fmt.Sprintf("WSBroker Display initialisiert (Endpoint: %s)", conf.WSBroker),
+	})
+
 	rawClient.OnEvent(func(evt *event.Event) {
 		msgLog.AddEvent("in", evt)
+	})
+	rawClient.OnConnect(func() {
+		msgLog.Add(rest.WSMessage{
+			Timestamp: time.Now(),
+			Direction: "in",
+			Type:      "connect",
+			Source:    "wsbroker",
+			Target:    conf.Name,
+			Data:      fmt.Sprintf("WebSocket-Verbindung hergestellt (Channels: %v)", conf.Channels),
+		})
+	})
+	rawClient.OnDisconnect(func(err error) {
+		msgLog.Add(rest.WSMessage{
+			Timestamp: time.Now(),
+			Direction: "system",
+			Type:      "disconnect",
+			Source:    "wsbroker",
+			Target:    conf.Name,
+			Data:      fmt.Sprintf("Verbindung getrennt: %v", err),
+		})
+	})
+	rawClient.OnReconnect(func() {
+		msgLog.Add(rest.WSMessage{
+			Timestamp: time.Now(),
+			Direction: "in",
+			Type:      "reconnect",
+			Source:    "wsbroker",
+			Target:    conf.Name,
+			Data:      "Verbindung wiederhergestellt",
+		})
 	})
 
 	// 5. Initialize and start NTP synchronization service via wsbrokerclient

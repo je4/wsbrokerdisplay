@@ -1,0 +1,122 @@
+// ==========================================================================
+// WSBroker Display Base Layout, Typography, Animations & Global Utilities
+// ==========================================================================
+
+// Base Body Theme with Ambient Background Image & Glassmorphism
+.app-body {
+    background-color: var(--color-bg-body);
+    background-image: var(--color-bg-overlay), var(--color-bg-image);
+    background-size: cover;
+    background-position: center center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    color: var(--color-text-main);
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+// Header & Meta
+.app-header {
+    background-color: var(--color-header-bg);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--rounded-box, 1rem);
+    padding: tw-space(4) tw-space(5);
+    margin-bottom: tw-space(6);
+    @include tw-blur(md);
+    box-shadow: var(--shadow-sm, 0 1px 3px 0 rgba(0, 0, 0, 0.05));
+}
+
+.app-main {
+    width: 100%;
+    max-width: 80rem;
+    margin-left: auto;
+    margin-right: auto;
+    flex: 1 1 0%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    row-gap: tw-space(6);
+}
+
+.app-title {
+    color: var(--color-text-main);
+}
+
+.app-badge-status {
+    background-color: var(--color-badge-status-bg);
+    color: var(--color-badge-status-text);
+    border-color: var(--color-badge-status-border);
+}
+
+.app-meta-text {
+    color: var(--color-text-muted);
+
+    strong {
+        color: var(--color-text-main);
+    }
+}
+
+// Footer
+.app-footer {
+    background-color: var(--color-footer-bg);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--rounded-box, 1rem);
+    padding: tw-space(3.5) tw-space(5);
+    margin-top: tw-space(6);
+    @include tw-blur(md);
+    box-shadow: var(--shadow-sm, 0 1px 3px 0 rgba(0, 0, 0, 0.05));
+    color: var(--color-text-dim);
+
+    .server-addr {
+        color: var(--color-text-muted);
+    }
+}
+
+// Animations & Effects
+@keyframes pulse-ring {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.15);
+        opacity: 0.3;
+    }
+    100% {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+}
+
+.pulse-indicator {
+    animation: pulse-ring 2s infinite ease-in-out;
+}
+
+// Scrollbars
+.custom-scrollbar,
+::-webkit-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 9999px;
+
+    &:hover {
+        background: var(--scrollbar-thumb-hover);
+    }
+}
+
+// Fallback SVG & IMG scaling safeguards
+svg.w-3, img.w-3 { width: 0.75rem !important; height: 0.75rem !important; max-width: 0.75rem !important; max-height: 0.75rem !important; flex-shrink: 0 !important; }
+svg.w-3\.5, img.w-3\.5 { width: 0.875rem !important; height: 0.875rem !important; max-width: 0.875rem !important; max-height: 0.875rem !important; flex-shrink: 0 !important; }
+svg.w-4, img.w-4 { width: 1rem !important; height: 1rem !important; max-width: 1rem !important; max-height: 1rem !important; flex-shrink: 0 !important; }
+svg.w-5, img.w-5 { width: 1.25rem !important; height: 1.25rem !important; max-width: 1.25rem !important; max-height: 1.25rem !important; flex-shrink: 0 !important; }
+svg.w-6, img.w-6 { width: 1.5rem !important; height: 1.5rem !important; max-width: 1.5rem !important; max-height: 1.5rem !important; flex-shrink: 0 !important; }
+svg.w-11, img.w-11 { width: 2.75rem !important; height: 2.75rem !important; max-width: 2.75rem !important; max-height: 2.75rem !important; flex-shrink: 0 !important; }
