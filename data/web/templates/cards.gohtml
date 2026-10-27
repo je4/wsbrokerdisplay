@@ -2,270 +2,278 @@
 <div id="ntp-offset-data" data-offset-nanos="{{.NTP.Offset.Nanoseconds}}" class="hidden"></div>
 
 <!-- Out-of-band update for header NTP status badge -->
-<div id="ntp-status-badge" hx-swap-oob="true" class="inline-flex items-center space-x-2 mb-2 px-3 py-1 rounded-full badge {{if .NTP.Synced}}badge-success bg-emerald-500/10 text-emerald-400 border-emerald-500/30{{else}}badge-warning bg-amber-500/10 text-amber-400 border-amber-500/30{{end}} text-xs font-medium">
-    <span class="w-2 h-2 rounded-full {{if .NTP.Synced}}bg-emerald-400 pulse-indicator{{else}}bg-amber-400{{end}}"></span>
+<div id="ntp-status-badge" hx-swap-oob="true" class="badge {{if .NTP.Synced}}badge-success{{else}}badge-warning{{end}} badge-sm gap-2 mb-1 font-medium">
+    <span class="w-2 h-2 rounded-full {{if .NTP.Synced}}bg-success-content pulse-indicator{{else}}bg-warning-content{{end}}"></span>
     <span>{{if .NTP.Synced}}NTP Synchronized (Offset: {{.NTP.OffsetString}}){{else}}Awaiting NTP Synchronization{{end}}</span>
 </div>
 
-<div class="kiosk-grid">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
     <!-- Card 1: NTP Network Time Synchronization -->
-    <div class="card card-bordered metric-card p-5 flex flex-col justify-between">
-        <div>
-            <div class="flex items-center justify-between mb-4 pb-2 border-b border-base-300/40">
-                <div class="flex items-center space-x-2.5">
-                    <div class="w-8 h-8 rounded-lg app-icon-box-primary flex items-center justify-center text-primary">
-                        <span class="app-icon icon-clock w-4 h-4" aria-hidden="true"></span>
+    <div class="card bg-base-100 card-bordered shadow-sm">
+        <div class="card-body p-4 sm:p-5 flex flex-col justify-between gap-3">
+            <div>
+                <div class="flex items-center justify-between border-b border-base-300/60 pb-3 mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                            <span class="app-icon icon-clock w-4 h-4" aria-hidden="true"></span>
+                        </div>
+                        <h2 class="card-title text-sm font-semibold m-0">Network Time (NTP)</h2>
                     </div>
-                    <h3 class="font-semibold text-base app-title">Network Time (NTP)</h3>
+                    {{if .NTP.Synced}}
+                    <span class="badge badge-success badge-sm gap-1.5 font-medium">
+                        <span class="w-1.5 h-1.5 rounded-full bg-success-content pulse-indicator"></span> Synced
+                    </span>
+                    {{else}}
+                    <span class="badge badge-warning badge-sm gap-1.5 font-medium">
+                        <span class="w-1.5 h-1.5 rounded-full bg-warning-content"></span> Unsynced
+                    </span>
+                    {{end}}
                 </div>
-                {{if .NTP.Synced}}
-                <span class="badge badge-success badge-sm gap-1.5 font-medium">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-indicator"></span> Synced
-                </span>
-                {{else}}
-                <span class="badge badge-warning badge-sm gap-1.5 font-medium">
-                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Unsynchronized
-                </span>
-                {{end}}
+
+                <dl class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Server</dt>
+                        <dd class="font-mono font-medium">{{.NTP.Server}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Clock Offset</dt>
+                        <dd class="font-mono {{if .NTP.Synced}}text-success font-semibold{{else}}text-warning{{end}}">{{if .NTP.Synced}}{{.NTP.OffsetString}}{{else}}--{{end}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Round-Trip Delay (RTT)</dt>
+                        <dd class="font-mono font-medium">{{if .NTP.Synced}}{{.NTP.RTTString}}{{else}}--{{end}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Stratum / Reference</dt>
+                        <dd class="font-mono">{{if .NTP.Synced}}Stratum {{.NTP.Stratum}} ({{.NTP.ReferenceID}}){{else}}--{{end}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1">
+                        <dt class="text-base-content/70">Precision / Leap</dt>
+                        <dd class="font-mono text-base-content/60">{{if .NTP.Synced}}{{.NTP.Precision}} / {{.NTP.LeapIndicator}}{{else}}--{{end}}</dd>
+                    </div>
+                </dl>
             </div>
 
-            <dl class="space-y-2.5 text-xs sm:text-sm">
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Server</dt>
-                    <dd class="font-mono app-metric-val font-medium">{{.NTP.Server}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Clock Offset</dt>
-                    <dd class="font-mono {{if .NTP.Synced}}text-success font-semibold{{else}}text-warning{{end}}">{{if .NTP.Synced}}{{.NTP.OffsetString}}{{else}}--{{end}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Round-Trip Delay (RTT)</dt>
-                    <dd class="font-mono app-metric-val font-medium">{{if .NTP.Synced}}{{.NTP.RTTString}}{{else}}--{{end}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Stratum / Reference</dt>
-                    <dd class="font-mono app-metric-val">{{if .NTP.Synced}}Stratum {{.NTP.Stratum}} ({{.NTP.ReferenceID}}){{else}}--{{end}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Precision / Leap</dt>
-                    <dd class="font-mono text-xs app-meta-text">{{if .NTP.Synced}}{{.NTP.Precision}} / {{.NTP.LeapIndicator}}{{else}}--{{end}}</dd>
-                </div>
-            </dl>
-        </div>
-
-        <div class="mt-4 pt-2 border-t border-base-300/40 text-xs app-meta-text flex justify-between items-center">
-            <span>Letzte Synchronisation</span>
-            <span class="font-mono">{{if .NTP.Synced}}{{.NTP.LastSync.Format "15:04:05 UTC"}}{{else}}Warte auf Sync{{end}}</span>
+            <div class="pt-2 border-t border-base-300/40 text-xs text-base-content/60 flex justify-between items-center">
+                <span>Letzte Synchronisation</span>
+                <span class="font-mono">{{if .NTP.Synced}}{{.NTP.LastSync.Format "15:04:05 UTC"}}{{else}}Warte auf Sync{{end}}</span>
+            </div>
         </div>
     </div>
 
     <!-- Card 2: WSBroker & Client Identity -->
-    <div class="card card-bordered metric-card p-5 flex flex-col justify-between">
-        <div>
-            <div class="flex items-center justify-between mb-4 pb-2 border-b border-base-300/40">
-                <div class="flex items-center space-x-2.5">
-                    <div class="w-8 h-8 rounded-lg app-icon-box-secondary flex items-center justify-center text-secondary">
-                        <span class="app-icon icon-channel w-4 h-4" aria-hidden="true"></span>
+    <div class="card bg-base-100 card-bordered shadow-sm">
+        <div class="card-body p-4 sm:p-5 flex flex-col justify-between gap-3">
+            <div>
+                <div class="flex items-center justify-between border-b border-base-300/60 pb-3 mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
+                            <span class="app-icon icon-channel w-4 h-4" aria-hidden="true"></span>
+                        </div>
+                        <h2 class="card-title text-sm font-semibold m-0">WSBroker Client</h2>
                     </div>
-                    <h3 class="font-semibold text-base app-title">WSBroker Client</h3>
+                    <span class="badge badge-secondary badge-sm font-medium">
+                        Aktiv
+                    </span>
                 </div>
-                <span class="badge badge-secondary badge-sm font-medium">
-                    Aktiv
-                </span>
+
+                <dl class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Client Name</dt>
+                        <dd class="font-mono font-semibold">{{.ClientName}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Broker Endpoint</dt>
+                        <dd class="font-mono truncate max-w-[160px]" title="{{.WSBroker}}">{{.WSBroker}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">TLS Cert Loader</dt>
+                        <dd class="font-mono">{{if .TLSType}}{{.TLSType}}{{else}}Deaktiviert / System{{end}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">REST Listening Addr</dt>
+                        <dd class="font-mono">{{.Addr}}</dd>
+                    </div>
+                    <div class="flex justify-between items-start py-1">
+                        <dt class="text-base-content/70 pt-0.5">Channels</dt>
+                        <dd class="text-right">
+                            {{if .Channels}}
+                            <div class="flex flex-wrap gap-1 justify-end max-w-[180px]">
+                                {{range .Channels}}
+                                <span class="badge badge-xs badge-outline font-mono">{{.}}</span>
+                                {{end}}
+                            </div>
+                            {{else}}
+                            <span class="font-mono text-base-content/50">keine</span>
+                            {{end}}
+                        </dd>
+                    </div>
+                </dl>
             </div>
 
-            <dl class="space-y-2.5 text-xs sm:text-sm">
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Client Name</dt>
-                    <dd class="font-mono app-metric-val font-semibold">{{.ClientName}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Broker Endpoint</dt>
-                    <dd class="font-mono text-xs app-metric-val truncate max-w-[180px]" title="{{.WSBroker}}">{{.WSBroker}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">TLS Cert Loader</dt>
-                    <dd class="font-mono app-metric-val">{{if .TLSType}}{{.TLSType}}{{else}}Deaktiviert / System{{end}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">REST Listening Addr</dt>
-                    <dd class="font-mono app-metric-val">{{.Addr}}</dd>
-                </div>
-                <div class="flex justify-between items-start">
-                    <dt class="app-metric-label pt-0.5">Channels</dt>
-                    <dd class="text-right">
-                        {{if .Channels}}
-                        <div class="flex flex-wrap gap-1 justify-end max-w-[200px]">
-                            {{range .Channels}}
-                            <span class="badge badge-sm badge-outline font-mono text-[11px]">{{.}}</span>
-                            {{end}}
-                        </div>
-                        {{else}}
-                        <span class="app-meta-text font-mono text-xs">keine</span>
-                        {{end}}
-                    </dd>
-                </div>
-            </dl>
-        </div>
-
-        <div class="mt-4 pt-2 border-t border-base-300/40 text-xs app-meta-text flex justify-between items-center">
-            <span>External Addr</span>
-            <span class="font-mono">{{if .ExtAddr}}{{.ExtAddr}}{{else}}--{{end}}</span>
+            <div class="pt-2 border-t border-base-300/40 text-xs text-base-content/60 flex justify-between items-center">
+                <span>External Addr</span>
+                <span class="font-mono">{{if .ExtAddr}}{{.ExtAddr}}{{else}}--{{end}}</span>
+            </div>
         </div>
     </div>
 
     <!-- Card 3: Display & Browser Engine -->
-    <div class="card card-bordered metric-card p-5 flex flex-col justify-between">
-        <div>
-            <div class="flex items-center justify-between mb-4 pb-2 border-b border-base-300/40">
-                <div class="flex items-center space-x-2.5">
-                    <div class="w-8 h-8 rounded-lg app-icon-box-accent flex items-center justify-center text-accent">
-                        <span class="app-icon icon-chip w-4 h-4" aria-hidden="true"></span>
+    <div class="card bg-base-100 card-bordered shadow-sm">
+        <div class="card-body p-4 sm:p-5 flex flex-col justify-between gap-3">
+            <div>
+                <div class="flex items-center justify-between border-b border-base-300/60 pb-3 mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                            <span class="app-icon icon-chip w-4 h-4" aria-hidden="true"></span>
+                        </div>
+                        <h2 class="card-title text-sm font-semibold m-0">Display &amp; Browser</h2>
                     </div>
-                    <h3 class="font-semibold text-base app-title">Display &amp; Browser</h3>
+                    <span class="badge badge-accent badge-sm font-medium">
+                        {{if .BrowserConfig.Kiosk}}Kiosk Mode{{else if .BrowserConfig.Headless}}Headless{{else}}Windowed{{end}}
+                    </span>
                 </div>
-                <span class="badge badge-accent badge-sm font-medium">
-                    {{if .BrowserConfig.Kiosk}}Kiosk Mode{{else if .BrowserConfig.Headless}}Headless{{else}}Windowed{{end}}
-                </span>
+
+                <dl class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Display Auflösung</dt>
+                        <dd class="font-mono font-medium">{{.BrowserConfig.Width}} &times; {{.BrowserConfig.Height}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Headless Mode</dt>
+                        <dd class="font-mono">{{if .BrowserConfig.Headless}}Ja{{else}}Nein{{end}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Kiosk Mode</dt>
+                        <dd class="font-mono">{{if .BrowserConfig.Kiosk}}Aktiviert{{else}}Deaktiviert{{end}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Remote CDP Endpoint</dt>
+                        <dd class="font-mono truncate max-w-[160px]" title="{{.BrowserConfig.Address}}">{{if .BrowserConfig.Address}}{{.BrowserConfig.Address}}{{else}}Lokale Instanz{{end}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1">
+                        <dt class="text-base-content/70">Supervisor Lifecycle</dt>
+                        <dd class="text-success font-medium">Auto-Restart</dd>
+                    </div>
+                </dl>
             </div>
 
-            <dl class="space-y-2.5 text-xs sm:text-sm">
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Display Auflösung</dt>
-                    <dd class="font-mono app-metric-val font-medium">{{.BrowserConfig.Width}} &times; {{.BrowserConfig.Height}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Headless Mode</dt>
-                    <dd class="font-mono app-metric-val">{{if .BrowserConfig.Headless}}Ja{{else}}Nein{{end}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Kiosk Mode</dt>
-                    <dd class="font-mono app-metric-val">{{if .BrowserConfig.Kiosk}}Aktiviert{{else}}Deaktiviert{{end}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Remote CDP Endpoint</dt>
-                    <dd class="font-mono text-xs app-metric-val truncate max-w-[160px]">{{if .BrowserConfig.Address}}{{.BrowserConfig.Address}}{{else}}Lokale Instanz{{end}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Supervisor Lifecycle</dt>
-                    <dd class="text-success font-medium">Automatischer Neustart</dd>
-                </div>
-            </dl>
-        </div>
-
-        <div class="mt-4 pt-2 border-t border-base-300/40 text-xs app-meta-text flex justify-between items-center">
-            <span>Controller</span>
-            <span>Chrome DevTools Protocol</span>
+            <div class="pt-2 border-t border-base-300/40 text-xs text-base-content/60 flex justify-between items-center">
+                <span>Controller</span>
+                <span>Chrome DevTools Protocol</span>
+            </div>
         </div>
     </div>
 
     <!-- Card 4: Host System Telemetry -->
-    <div class="card card-bordered metric-card p-5 flex flex-col justify-between">
-        <div>
-            <div class="flex items-center justify-between mb-4 pb-2 border-b border-base-300/40">
-                <div class="flex items-center space-x-2.5">
-                    <div class="w-8 h-8 rounded-lg app-icon-box-info flex items-center justify-center text-info">
-                        <span class="app-icon icon-home w-4 h-4" aria-hidden="true"></span>
+    <div class="card bg-base-100 card-bordered shadow-sm">
+        <div class="card-body p-4 sm:p-5 flex flex-col justify-between gap-3">
+            <div>
+                <div class="flex items-center justify-between border-b border-base-300/60 pb-3 mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-info/10 text-info flex items-center justify-center shrink-0">
+                            <span class="app-icon icon-home w-4 h-4" aria-hidden="true"></span>
+                        </div>
+                        <h2 class="card-title text-sm font-semibold m-0">Host System</h2>
                     </div>
-                    <h3 class="font-semibold text-base app-title">Host System</h3>
+                    <span class="badge badge-info badge-sm font-medium">
+                        {{.OS}}/{{.Arch}}
+                    </span>
                 </div>
-                <span class="badge badge-info badge-sm font-medium">
-                    {{.OS}}/{{.Arch}}
-                </span>
+
+                <dl class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Hostname</dt>
+                        <dd class="font-mono font-medium">{{.Hostname}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Betriebssystem</dt>
+                        <dd class="font-mono">{{.OS}} ({{.Arch}})</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Go Runtime</dt>
+                        <dd class="font-mono">{{.GoVersion}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1 border-b border-base-200/50">
+                        <dt class="text-base-content/70">Prozess-Laufzeit</dt>
+                        <dd class="font-mono text-success font-semibold">{{.Uptime}}</dd>
+                    </div>
+                    <div class="flex justify-between items-center py-1">
+                        <dt class="text-base-content/70">Gestartet um</dt>
+                        <dd class="font-mono text-base-content/60">{{.StartTime.Format "2006-01-02 15:04:05"}}</dd>
+                    </div>
+                </dl>
             </div>
 
-            <dl class="space-y-2.5 text-xs sm:text-sm">
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Hostname</dt>
-                    <dd class="font-mono app-metric-val font-medium">{{.Hostname}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Betriebssystem</dt>
-                    <dd class="font-mono app-metric-val">{{.OS}} ({{.Arch}})</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Go Runtime</dt>
-                    <dd class="font-mono app-metric-val">{{.GoVersion}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Prozess-Laufzeit</dt>
-                    <dd class="font-mono text-success font-semibold">{{.Uptime}}</dd>
-                </div>
-                <div class="flex justify-between items-center">
-                    <dt class="app-metric-label">Gestartet um</dt>
-                    <dd class="font-mono text-xs app-meta-text">{{.StartTime.Format "2006-01-02 15:04:05"}}</dd>
-                </div>
-            </dl>
-        </div>
-
-        <div class="mt-4 pt-2 border-t border-base-300/40 text-xs app-meta-text flex justify-between items-center">
-            <span>Status</span>
-            <span class="text-success font-medium">Betriebsbereit</span>
+            <div class="pt-2 border-t border-base-300/40 text-xs text-base-content/60 flex justify-between items-center">
+                <span>Status</span>
+                <span class="text-success font-medium">Betriebsbereit</span>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- WebSocket Message Log Section -->
-<div class="card card-bordered metric-card log-card p-5 mt-6">
-    <div class="flex flex-wrap items-center justify-between mb-4 pb-3 border-b border-base-300/40 gap-2">
-        <div class="flex items-center space-x-2.5">
-            <div class="w-8 h-8 rounded-lg app-icon-box-primary flex items-center justify-center text-primary">
-                <span class="app-icon icon-copy w-4 h-4" aria-hidden="true"></span>
+<div class="card bg-base-100 card-bordered shadow-sm mt-10 sm:mt-12">
+    <div class="card-body p-4 sm:p-5">
+        <div class="flex flex-wrap items-center justify-between border-b border-base-300/60 pb-3 mb-3 gap-2">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <span class="app-icon icon-copy w-4 h-4" aria-hidden="true"></span>
+                </div>
+                <h2 class="card-title text-sm font-semibold m-0">WebSocket Message Log</h2>
+                <span class="badge badge-sm badge-outline font-mono">{{len .Messages}} entries</span>
             </div>
-            <h3 class="font-semibold text-base app-title">WebSocket Message Log</h3>
-            <span class="badge badge-sm badge-outline font-mono">{{len .Messages}} entries</span>
+            <div class="badge badge-primary badge-outline badge-sm gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-primary pulse-indicator"></span>
+                <span>Live Stream</span>
+            </div>
         </div>
-        <div class="flex items-center space-x-3 text-xs app-meta-text">
-            <span class="inline-flex items-center space-x-1.5">
-                <span class="w-2 h-2 rounded-full bg-primary pulse-indicator"></span>
-                <span class="font-medium text-primary">Live Stream</span>
-            </span>
-        </div>
-    </div>
 
-    {{if .Messages}}
-    <div class="message-log-scroll custom-scrollbar overflow-x-auto overflow-y-auto max-h-96 min-h-[120px] rounded-lg border border-base-300/40 bg-base-100/50">
-        <table class="table table-zebra table-pin-rows w-full text-left text-xs font-mono">
-            <thead class="bg-base-200/95 sticky top-0 z-10 border-b border-base-300/40 shadow-sm">
-                <tr class="text-[11px] font-semibold uppercase tracking-wider text-base-content">
-                    <th scope="col" class="py-2.5 px-3 whitespace-nowrap">Zeit</th>
-                    <th scope="col" class="py-2.5 px-2 whitespace-nowrap">Richtung</th>
-                    <th scope="col" class="py-2.5 px-2 whitespace-nowrap">Typ</th>
-                    <th scope="col" class="py-2.5 px-3 whitespace-nowrap">Quelle &rarr; Ziel</th>
-                    <th scope="col" class="py-2.5 px-3 whitespace-nowrap">Token</th>
-                    <th scope="col" class="py-2.5 px-3">Payload / Daten</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{range .Messages}}
-                <tr class="hover:bg-base-200/60 transition-colors border-b border-base-300/20">
-                    <td class="py-2.5 px-3 text-base-content/80 whitespace-nowrap font-mono">{{.Timestamp.Format "15:04:05.000"}}</td>
-                    <td class="py-2.5 px-2 whitespace-nowrap">
-                        {{if eq .Direction "in"}}
-                        <span class="badge badge-sm badge-info text-[10px] font-bold">IN</span>
-                        {{else if eq .Direction "out"}}
-                        <span class="badge badge-sm badge-secondary text-[10px] font-bold">OUT</span>
-                        {{else}}
-                        <span class="badge badge-sm badge-warning text-[10px] font-bold">SYS</span>
-                        {{end}}
-                    </td>
-                    <td class="py-2.5 px-2 whitespace-nowrap">
-                        <span class="badge badge-sm badge-outline font-mono text-[10px]">{{.Type}}</span>
-                    </td>
-                    <td class="py-2.5 px-3 whitespace-nowrap font-mono">
-                        <span class="text-primary font-semibold">{{.Source}}</span>
-                        {{if .Target}}<span class="text-base-content/50 mx-1">&rarr;</span><span class="text-secondary font-medium">{{.Target}}</span>{{end}}
-                    </td>
-                    <td class="py-2.5 px-3 text-base-content/70 whitespace-nowrap font-mono">{{if .Token}}{{.Token}}{{else}}-{{end}}</td>
-                    <td class="py-2.5 px-3 text-base-content break-all font-mono max-w-xl">{{if .Data}}{{.Data}}{{else}}<span class="text-base-content/40 italic">keine</span>{{end}}</td>
-                </tr>
-                {{end}}
-            </tbody>
-        </table>
+        {{if .Messages}}
+        <div class="overflow-x-auto overflow-y-auto max-h-96 rounded-box border border-base-200">
+            <table class="table table-zebra table-pin-rows table-xs sm:table-sm w-full font-mono">
+                <thead>
+                    <tr class="text-base-content/80">
+                        <th>Zeit</th>
+                        <th>Richtung</th>
+                        <th>Typ</th>
+                        <th>Quelle &rarr; Ziel</th>
+                        <th>Token</th>
+                        <th>Payload / Daten</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Messages}}
+                    <tr class="hover">
+                        <td class="whitespace-nowrap">{{.Timestamp.Format "15:04:05.000"}}</td>
+                        <td>
+                            {{if eq .Direction "in"}}
+                            <span class="badge badge-xs badge-info font-bold">IN</span>
+                            {{else if eq .Direction "out"}}
+                            <span class="badge badge-xs badge-secondary font-bold">OUT</span>
+                            {{else}}
+                            <span class="badge badge-xs badge-warning font-bold">SYS</span>
+                            {{end}}
+                        </td>
+                        <td>
+                            <span class="badge badge-xs badge-outline font-mono">{{.Type}}</span>
+                        </td>
+                        <td class="whitespace-nowrap">
+                            <span class="text-primary font-semibold">{{.Source}}</span>
+                            {{if .Target}}<span class="text-base-content/50 mx-1">&rarr;</span><span class="text-secondary font-medium">{{.Target}}</span>{{end}}
+                        </td>
+                        <td class="whitespace-nowrap">{{if .Token}}{{.Token}}{{else}}-{{end}}</td>
+                        <td class="break-all max-w-xl">{{if .Data}}{{.Data}}{{else}}<span class="text-base-content/40 italic">keine</span>{{end}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        {{else}}
+        <div class="alert alert-info shadow-sm text-xs font-mono">
+            <span>Noch keine WebSocket-Nachrichten protokolliert.</span>
+        </div>
+        {{end}}
     </div>
-    {{else}}
-    <div class="py-8 text-center text-base-content/60 font-mono text-xs border border-dashed border-base-300/60 rounded-lg">
-        Noch keine WebSocket-Nachrichten protokolliert.
-    </div>
-    {{end}}
 </div>

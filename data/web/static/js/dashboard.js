@@ -1,7 +1,6 @@
 /**
- * WSBroker Display - Real-time Live Synchronized Clock, Telemetry Updater & DaisyUI Theme Controller
+ * WSBroker Display - Real-time Live Synchronized Clock & Telemetry Updater
  */
-import { initThemeSelector } from './modules/theme-selector.js';
 
 (function() {
     'use strict';
@@ -49,9 +48,8 @@ import { initThemeSelector } from './modules/theme-selector.js';
         }
     }
 
-    // Initialize clock and theme selector on DOMContentLoaded
+    // Initialize clock on DOMContentLoaded
     document.addEventListener('DOMContentLoaded', function() {
-        initThemeSelector();
         parseOffsetFromDOM();
         updateClock();
         setInterval(updateClock, 200);
