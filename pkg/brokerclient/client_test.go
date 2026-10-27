@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/zLogger"
 	rawclient "github.com/je4/wsbrokerclient/pkg/client"
 	"github.com/je4/wsbrokerclient/pkg/event"
@@ -26,12 +27,17 @@ type mockBrokerClient struct {
 	handlers      []rawclient.EventHandler
 	sentEvents    []*event.Event
 	onSend        func(ctx context.Context, evt *event.Event) error
+	onRequest     func(ctx context.Context, evt *event.Event) (*event.Event, error)
+	waiters       map[string]chan *event.Event
 	connectCalled bool
 	closed        bool
 }
 
 func newMockBrokerClient(name string) *mockBrokerClient {
-	return &mockBrokerClient{name: name}
+	return &mockBrokerClient{
+		name:    name,
+		waiters: make(map[string]chan *event.Event),
+	}
 }
 
 func (m *mockBrokerClient) ClientName() string {
@@ -48,6 +54,110 @@ func (m *mockBrokerClient) Send(ctx context.Context, evt *event.Event) error {
 		return onSend(ctx, evt)
 	}
 	return nil
+}
+
+func (m *mockBrokerClient) Request(ctx context.Context, evt *event.Event) (*event.Event, error) {
+	m.mu.Lock()
+	onRequest := m.onRequest
+	m.mu.Unlock()
+	if onRequest != nil {
+		return onRequest(ctx, evt)
+	}
+
+	ch := make(chan *event.Event, 1)
+	if err := m.RequestN(ctx, evt, 1, ch); err != nil {
+		return nil, err
+	}
+	return <-ch, nil
+}
+
+func (m *mockBrokerClient) Request0(ctx context.Context, evt *event.Event) error {
+	return m.Send(ctx, evt)
+}
+
+func (m *mockBrokerClient) Request1(ctx context.Context, evt *event.Event) (*event.Event, error) {
+	return m.Request(ctx, evt)
+}
+
+func (m *mockBrokerClient) RequestN(ctx context.Context, evt *event.Event, numResults int, ch chan *event.Event) error {
+	if evt.ID == "" {
+		evt.ID = event.GenerateEventID()
+	}
+	if evt.Source == "" {
+		evt.Source = m.name
+	}
+	if numResults <= 0 {
+		return m.Send(ctx, evt)
+	}
+
+	m.mu.Lock()
+	if m.waiters == nil {
+		m.waiters = make(map[string]chan *event.Event)
+	}
+	waiterCh := make(chan *event.Event, numResults)
+	m.waiters[evt.ID] = waiterCh
+	if evt.Token != "" {
+		m.waiters[evt.Token] = waiterCh
+	}
+	m.mu.Unlock()
+
+	defer func() {
+		m.mu.Lock()
+		delete(m.waiters, evt.ID)
+		if evt.Token != "" {
+			delete(m.waiters, evt.Token)
+		}
+		m.mu.Unlock()
+	}()
+
+	if err := m.Send(ctx, evt); err != nil {
+		return err
+	}
+
+	for range numResults {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case resp, ok := <-waiterCh:
+			if !ok || resp == nil {
+				return errors.New("closed")
+			}
+			ch <- resp
+		}
+	}
+	return nil
+}
+
+func (m *mockBrokerClient) Reply(ctx context.Context, originalEvt *event.Event, data any) error {
+	return m.ReplyType(ctx, originalEvt, event.TypeMessage, data)
+}
+
+func (m *mockBrokerClient) ReplyType(ctx context.Context, originalEvt *event.Event, replyType event.EventType, data any) error {
+	if originalEvt == nil {
+		return errors.New("nil event")
+	}
+	replyEvt, err := originalEvt.CreateReply(replyType, data)
+	if err != nil {
+		return err
+	}
+	replyEvt.Source = m.name
+	return m.Send(ctx, replyEvt)
+}
+
+func (m *mockBrokerClient) SendMessage(ctx context.Context, target string, data any) error {
+	evt, err := event.NewMessageEvent(m.name, target, data)
+	if err != nil {
+		return err
+	}
+	return m.Send(ctx, evt)
+}
+
+func (m *mockBrokerClient) Broadcast(ctx context.Context, channel string, data any) error {
+	return m.SendMessage(ctx, channel, data)
+}
+
+func (m *mockBrokerClient) SendDirect(ctx context.Context, targetClient string, data any) error {
+	return m.SendMessage(ctx, targetClient, data)
 }
 
 func (m *mockBrokerClient) OnEvent(handler rawclient.EventHandler) rawclient.UnsubscribeFunc {
@@ -99,6 +209,22 @@ func (m *mockBrokerClient) Close() error {
 
 func (m *mockBrokerClient) EmitEvent(evt *event.Event) {
 	m.mu.Lock()
+	if evt.RefID != "" && m.waiters != nil {
+		if ch, found := m.waiters[evt.RefID]; found {
+			select {
+			case ch <- evt:
+			default:
+			}
+		}
+	}
+	if evt.Token != "" && m.waiters != nil {
+		if ch, found := m.waiters[evt.Token]; found {
+			select {
+			case ch <- evt:
+			default:
+			}
+		}
+	}
 	handlers := make([]rawclient.EventHandler, len(m.handlers))
 	copy(handlers, m.handlers)
 	m.mu.Unlock()
@@ -256,7 +382,7 @@ func TestNavigateMethod(t *testing.T) {
 	}
 
 	mock.onSend = func(ctx context.Context, evt *event.Event) error {
-		if evt != nil && evt.Token != "" {
+		if evt != nil {
 			var cmd CommandMessage
 			if err := evt.UnmarshalData(&cmd); err == nil && cmd.Action == ActionNavigate {
 				resp := NavigateResponse{
@@ -264,8 +390,8 @@ func TestNavigateMethod(t *testing.T) {
 					Status: "ok",
 					URL:    cmd.URL,
 				}
-				respEvt, _ := event.NewMessageEvent("display01", evt.Source, resp)
-				respEvt.Token = evt.Token
+				respEvt, _ := evt.CreateReply(event.TypeMessage, resp)
+				respEvt.Source = "display01"
 				go mock.EmitEvent(respEvt)
 			}
 		}
@@ -307,15 +433,15 @@ func TestGetURLMethod(t *testing.T) {
 	}
 
 	mock.onSend = func(ctx context.Context, evt *event.Event) error {
-		if evt != nil && evt.Token != "" {
+		if evt != nil {
 			var cmd CommandMessage
 			if err := evt.UnmarshalData(&cmd); err == nil && cmd.Action == ActionGetURL {
 				resp := URLResponse{
 					Action: ActionGetURLResponse,
 					URL:    "https://example.com/current",
 				}
-				respEvt, _ := event.NewMessageEvent("display01", evt.Source, resp)
-				respEvt.Token = evt.Token
+				respEvt, _ := evt.CreateReply(event.TypeMessage, resp)
+				respEvt.Source = "display01"
 				go mock.EmitEvent(respEvt)
 			}
 		}
@@ -344,11 +470,12 @@ func TestGetScreenshotMethod(t *testing.T) {
 	}
 
 	mock.onSend = func(ctx context.Context, evt *event.Event) error {
-		if evt != nil && evt.Token != "" {
+		if evt != nil {
 			var cmd CommandMessage
 			if err := evt.UnmarshalData(&cmd); err == nil && cmd.Action == ActionGetScreenshot {
 				fileMsg := event.NewFileMessage("shot.jpg", "image/jpeg", []byte("sample_screenshot_bytes"))
-				respEvt, _ := event.NewFileEvent("display01", evt.Source, fileMsg, evt.Token)
+				respEvt, _ := evt.CreateReply(event.TypeFile, fileMsg)
+				respEvt.Source = "display01"
 				go mock.EmitEvent(respEvt)
 			}
 		}
@@ -377,14 +504,14 @@ func TestGetScreenshotErrorResponse(t *testing.T) {
 	}
 
 	mock.onSend = func(ctx context.Context, evt *event.Event) error {
-		if evt != nil && evt.Token != "" {
+		if evt != nil {
 			resp := ScreenshotResponse{
 				Action: ActionScreenshotResponse,
 				Status: "error",
 				Error:  "browser renderer crashed",
 			}
-			respEvt, _ := event.NewMessageEvent("display01", evt.Source, resp)
-			respEvt.Token = evt.Token
+			respEvt, _ := evt.CreateReply(event.TypeMessage, resp)
+			respEvt.Source = "display01"
 			go mock.EmitEvent(respEvt)
 		}
 		return nil
@@ -409,7 +536,7 @@ func TestGetStatusMethod(t *testing.T) {
 	}
 
 	mock.onSend = func(ctx context.Context, evt *event.Event) error {
-		if evt != nil && evt.Token != "" {
+		if evt != nil {
 			var cmd CommandMessage
 			if err := evt.UnmarshalData(&cmd); err == nil && (cmd.Action == ActionGetStatus || cmd.Event == "display:getstatus") {
 				resp := StatusResponse{
@@ -424,11 +551,11 @@ func TestGetStatusMethod(t *testing.T) {
 						Uptime:     "45m",
 					},
 				}
-				respEvt, err := event.NewMessageEvent("display01", evt.Source, resp)
+				respEvt, err := evt.CreateReply(event.TypeMessage, resp)
 				if err != nil {
-					t.Fatalf("NewMessageEvent failed: %v", err)
+					t.Fatalf("CreateReply failed: %v", err)
 				}
-				respEvt.Token = evt.Token
+				respEvt.Source = "display01"
 				go mock.EmitEvent(respEvt)
 			}
 		}
@@ -457,14 +584,14 @@ func TestGetStatusErrorResponse(t *testing.T) {
 	}
 
 	mock.onSend = func(ctx context.Context, evt *event.Event) error {
-		if evt != nil && evt.Token != "" {
+		if evt != nil {
 			resp := StatusResponse{
 				Action: ActionGetStatusResponse,
 				Status: "error",
 				Error:  "status provider not configured",
 			}
-			respEvt, _ := event.NewMessageEvent("display01", evt.Source, resp)
-			respEvt.Token = evt.Token
+			respEvt, _ := evt.CreateReply(event.TypeMessage, resp)
+			respEvt.Source = "display01"
 			go mock.EmitEvent(respEvt)
 		}
 		return nil
@@ -530,21 +657,8 @@ func TestClientClose(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	token := "pending_tok"
-	ch := c.registerWaiter(token)
-
-	go func() {
-		time.Sleep(50 * time.Millisecond)
-		_ = c.Close()
-	}()
-
-	select {
-	case evt, ok := <-ch:
-		if ok && evt != nil {
-			t.Errorf("expected channel close or nil on Client.Close()")
-		}
-	case <-time.After(1 * time.Second):
-		t.Errorf("timeout waiting for waiter channel closure on Client.Close()")
+	if err := c.Close(); err != nil {
+		t.Errorf("Close failed: %v", err)
 	}
 
 	// Second Close should be idempotent
@@ -553,5 +667,103 @@ func TestClientClose(t *testing.T) {
 	}
 	if !mock.closed {
 		t.Errorf("expected underlying mock client to be closed")
+	}
+}
+
+func TestClientRequestAndReplyMethods(t *testing.T) {
+	logger := newTestLogger()
+	mock := newMockBrokerClient("controller01")
+
+	c, err := New(mock, logger)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	mock.onSend = func(ctx context.Context, evt *event.Event) error {
+		if evt != nil {
+			var msg string
+			_ = evt.UnmarshalData(&msg)
+			if msg == "ping-request" {
+				replyEvt, _ := evt.CreateReply(event.TypeMessage, "pong-response")
+				replyEvt.Source = "server01"
+				go mock.EmitEvent(replyEvt)
+			}
+		}
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// 1. Test Request / Request1
+	reqEvt, err := event.NewMessageEvent("controller01", "server01", "ping-request")
+	if err != nil {
+		t.Fatalf("failed to create request event: %v", err)
+	}
+	respEvt, err := c.Request(ctx, reqEvt)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	var respMsg string
+	if err := respEvt.UnmarshalData(&respMsg); err != nil {
+		t.Fatalf("failed to unmarshal response message: %v", err)
+	}
+	if respMsg != "pong-response" || respEvt.RefID != reqEvt.ID {
+		t.Errorf("unexpected response event: %+v", respEvt)
+	}
+
+	// 2. Test Request1 alias
+	reqEvt2, _ := event.NewMessageEvent("controller01", "server01", "ping-request")
+	respEvt2, err := c.Request1(ctx, reqEvt2)
+	if err != nil {
+		t.Fatalf("Request1 failed: %v", err)
+	}
+	var respMsg2 string
+	_ = respEvt2.UnmarshalData(&respMsg2)
+	if respMsg2 != "pong-response" {
+		t.Errorf("unexpected Request1 response: %s", respMsg2)
+	}
+
+	// 3. Test Request0 (fire and forget)
+	reqEvt0, _ := event.NewMessageEvent("controller01", "server01", "fire-and-forget")
+	if err := c.Request0(ctx, reqEvt0); err != nil {
+		t.Fatalf("Request0 failed: %v", err)
+	}
+
+	// 4. Test RequestN
+	reqEvtN, _ := event.NewMessageEvent("controller01", "server01", "ping-request")
+	ch := make(chan *event.Event, 1)
+	if err := c.RequestN(ctx, reqEvtN, 1, ch); err != nil {
+		t.Fatalf("RequestN failed: %v", err)
+	}
+	select {
+	case received := <-ch:
+		var nMsg string
+		_ = received.UnmarshalData(&nMsg)
+		if nMsg != "pong-response" {
+			t.Errorf("unexpected RequestN streamed event: %+v", received)
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatalf("timeout waiting for RequestN response")
+	}
+
+	// 5. Test Reply and ReplyType
+	origEvt, _ := event.NewMessageEvent("client01", "controller01", "query")
+	if err := c.Reply(ctx, origEvt, "reply-data"); err != nil {
+		t.Fatalf("Reply failed: %v", err)
+	}
+	if err := c.ReplyType(ctx, origEvt, event.TypeFile, event.NewFileMessage("test.txt", "text/plain", []byte("hello"))); err != nil {
+		t.Fatalf("ReplyType failed: %v", err)
+	}
+
+	// 6. Test SendMessage, Broadcast, SendDirect
+	if err := c.SendMessage(ctx, "target01", "msg"); err != nil {
+		t.Fatalf("SendMessage failed: %v", err)
+	}
+	if err := c.Broadcast(ctx, "channel01", "broadcast"); err != nil {
+		t.Fatalf("Broadcast failed: %v", err)
+	}
+	if err := c.SendDirect(ctx, "client02", "direct"); err != nil {
+		t.Fatalf("SendDirect failed: %v", err)
 	}
 }

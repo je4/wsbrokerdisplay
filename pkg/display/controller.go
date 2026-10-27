@@ -158,33 +158,33 @@ func (c *Controller) HandleEvent(evt *event.Event) {
 
 	switch eventName {
 	case EventNavigate, "navigate":
-		c.handleNavigate(ctx, target, evt.Token, cmd)
+		c.handleNavigate(ctx, evt, cmd)
 	case EventGetURL, "geturl":
-		c.handleGetURL(ctx, target, evt.Token)
+		c.handleGetURL(ctx, evt)
 	case EventGetScreenshot, "getscreenshot":
-		c.handleGetScreenshot(ctx, target, evt.Token, cmd)
+		c.handleGetScreenshot(ctx, evt, cmd)
 	case EventGetStatus, "getstatus":
-		c.handleGetStatus(ctx, target, evt.Token)
+		c.handleGetStatus(ctx, evt)
 	default:
 		c.logger.Warn().Str("Event", eventName).Msg("unknown command Event received")
-		_ = c.sendResponse(ctx, target, NavigateResponse{
+		_ = c.sendResponse(ctx, evt, NavigateResponse{
 			Event:  "error",
 			Status: "error",
 			Error:  fmt.Sprintf("unknown Event '%s'", eventName),
-		}, evt.Token)
+		})
 	}
 }
 
 // handleGetStatus retrieves the live display telemetry from the status provider,
 // strips the message log, and transmits the response back to the requester.
-func (c *Controller) handleGetStatus(ctx context.Context, target, token string) {
+func (c *Controller) handleGetStatus(ctx context.Context, origEvt *event.Event) {
 	if c.statusProvider == nil {
 		c.logger.Warn().Msg("status provider not configured")
-		_ = c.sendResponse(ctx, target, StatusResponse{
+		_ = c.sendResponse(ctx, origEvt, StatusResponse{
 			Event:  EventGetStatusResponse,
 			Status: "error",
 			Error:  "status provider not configured",
-		}, token)
+		})
 		return
 	}
 
@@ -192,21 +192,21 @@ func (c *Controller) handleGetStatus(ctx context.Context, target, token string) 
 	data.Messages = nil // explicitly strip message log to keep payload lightweight
 
 	c.logger.Info().Str("client", data.ClientName).Msg("status retrieved successfully")
-	_ = c.sendResponse(ctx, target, StatusResponse{
+	_ = c.sendResponse(ctx, origEvt, StatusResponse{
 		Event:  EventGetStatusResponse,
 		Status: "ok",
 		Data:   &data,
-	}, token)
+	})
 }
 
 // handleNavigate executes a browser navigation command and returns the navigation status.
-func (c *Controller) handleNavigate(ctx context.Context, target, token string, cmd CommandMessage) {
+func (c *Controller) handleNavigate(ctx context.Context, origEvt *event.Event, cmd CommandMessage) {
 	if cmd.URL == "" {
-		_ = c.sendResponse(ctx, target, NavigateResponse{
+		_ = c.sendResponse(ctx, origEvt, NavigateResponse{
 			Event:  EventNavigateResponse,
 			Status: "error",
 			Error:  "missing URL parameter",
-		}, token)
+		})
 		return
 	}
 
@@ -219,45 +219,45 @@ func (c *Controller) handleNavigate(ctx context.Context, target, token string, c
 
 	if err != nil {
 		c.logger.Error().Err(err).Str("url", cmd.URL).Msg("failed to navigate")
-		_ = c.sendResponse(ctx, target, NavigateResponse{
+		_ = c.sendResponse(ctx, origEvt, NavigateResponse{
 			Event:  EventNavigateResponse,
 			Status: "error",
 			URL:    cmd.URL,
 			Error:  err.Error(),
-		}, token)
+		})
 		return
 	}
 
 	c.logger.Info().Str("url", cmd.URL).Msg("navigated successfully")
-	_ = c.sendResponse(ctx, target, NavigateResponse{
+	_ = c.sendResponse(ctx, origEvt, NavigateResponse{
 		Event:  EventNavigateResponse,
 		Status: "ok",
 		URL:    cmd.URL,
-	}, token)
+	})
 }
 
 // handleGetURL retrieves the current browser URL and transmits the response back to requester.
-func (c *Controller) handleGetURL(ctx context.Context, target, token string) {
+func (c *Controller) handleGetURL(ctx context.Context, origEvt *event.Event) {
 	currentURL, err := c.browser.GetURL(ctx)
 	if err != nil {
 		c.logger.Error().Err(err).Msg("failed to get current URL")
-		_ = c.sendResponse(ctx, target, URLResponse{
+		_ = c.sendResponse(ctx, origEvt, URLResponse{
 			Event: EventGetURLResponse,
 			Error: err.Error(),
-		}, token)
+		})
 		return
 	}
 
 	c.logger.Info().Str("url", currentURL).Msg("current URL retrieved")
-	_ = c.sendResponse(ctx, target, URLResponse{
+	_ = c.sendResponse(ctx, origEvt, URLResponse{
 		Event: EventGetURLResponse,
 		URL:   currentURL,
-	}, token)
+	})
 }
 
 // handleGetScreenshot captures a screenshot downscaled to fit within max 800x600 pixels
 // and delivers the resulting image as a binary file event.
-func (c *Controller) handleGetScreenshot(ctx context.Context, target, token string, cmd CommandMessage) {
+func (c *Controller) handleGetScreenshot(ctx context.Context, origEvt *event.Event, cmd CommandMessage) {
 	format := cmd.Format
 	if format == "" {
 		format = "jpeg"
@@ -277,11 +277,11 @@ func (c *Controller) handleGetScreenshot(ctx context.Context, target, token stri
 	data, mimeType, err := c.browser.Screenshot(ctx, opts)
 	if err != nil {
 		c.logger.Error().Err(err).Msg("failed to capture screenshot")
-		_ = c.sendResponse(ctx, target, ScreenshotResponse{
+		_ = c.sendResponse(ctx, origEvt, ScreenshotResponse{
 			Event:  EventScreenshotResponse,
 			Status: "error",
 			Error:  err.Error(),
-		}, token)
+		})
 		return
 	}
 
@@ -291,7 +291,7 @@ func (c *Controller) handleGetScreenshot(ctx context.Context, target, token stri
 	}
 	filename := fmt.Sprintf("screenshot_%d.%s", time.Now().Unix(), ext)
 
-	if err := c.sendFile(ctx, target, filename, mimeType, data, token); err != nil {
+	if err := c.sendFile(ctx, origEvt, filename, mimeType, data); err != nil {
 		c.logger.Error().Err(err).Msg("failed to send screenshot file event")
 	} else {
 		c.logger.Info().Str("filename", filename).Int("bytes", len(data)).Msg("screenshot sent successfully")
@@ -299,29 +299,46 @@ func (c *Controller) handleGetScreenshot(ctx context.Context, target, token stri
 }
 
 // sendResponse transmits a structured response message to the target client or channel.
-func (c *Controller) sendResponse(ctx context.Context, target string, response any, token ...string) error {
-	evt, err := event.NewMessageEvent(c.client.ClientName(), target, response)
-	if err != nil {
-		return errors.Wrap(err, "failed to create message event")
+func (c *Controller) sendResponse(ctx context.Context, origEvt *event.Event, response any) error {
+	var replyEvt *event.Event
+	var err error
+	if origEvt != nil {
+		replyEvt, err = origEvt.CreateReply(event.TypeMessage, response)
+		if err != nil {
+			return errors.Wrap(err, "failed to create message reply event")
+		}
+	} else {
+		replyEvt, err = event.NewMessageEvent(c.client.ClientName(), "", response)
+		if err != nil {
+			return errors.Wrap(err, "failed to create message event")
+		}
 	}
-	if len(token) > 0 && token[0] != "" {
-		evt.Token = token[0]
-	}
+	replyEvt.Source = c.client.ClientName()
 	if c.onSend != nil {
-		c.onSend(evt)
+		c.onSend(replyEvt)
 	}
-	return c.client.Send(ctx, evt)
+	return c.client.Send(ctx, replyEvt)
 }
 
 // sendFile transmits a binary file payload to the target.
-func (c *Controller) sendFile(ctx context.Context, target string, filename, mimeType string, data []byte, token ...string) error {
+func (c *Controller) sendFile(ctx context.Context, origEvt *event.Event, filename, mimeType string, data []byte) error {
 	fileMsg := event.NewFileMessage(filename, mimeType, data)
-	evt, err := event.NewFileEvent(c.client.ClientName(), target, fileMsg, token...)
-	if err != nil {
-		return errors.Wrap(err, "failed to create file event")
+	var replyEvt *event.Event
+	var err error
+	if origEvt != nil {
+		replyEvt, err = origEvt.CreateReply(event.TypeFile, fileMsg)
+		if err != nil {
+			return errors.Wrap(err, "failed to create file reply event")
+		}
+	} else {
+		replyEvt, err = event.NewFileEvent(c.client.ClientName(), "", fileMsg)
+		if err != nil {
+			return errors.Wrap(err, "failed to create file event")
+		}
 	}
+	replyEvt.Source = c.client.ClientName()
 	if c.onSend != nil {
-		c.onSend(evt)
+		c.onSend(replyEvt)
 	}
-	return c.client.Send(ctx, evt)
+	return c.client.Send(ctx, replyEvt)
 }

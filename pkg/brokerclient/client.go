@@ -6,11 +6,7 @@ package brokerclient
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
-	"fmt"
 	"sync"
-	"time"
 
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/zLogger"
@@ -26,6 +22,24 @@ type BrokerClient interface {
 	ClientName() string
 	// Send transmits an event envelope over the WebSocket connection.
 	Send(ctx context.Context, evt *event.Event) error
+	// Request sends an event and waits synchronously for a correlated response matching evt.ID / evt.Token.
+	Request(ctx context.Context, evt *event.Event) (*event.Event, error)
+	// Request0 sends an event with a newly generated ID without waiting for any response.
+	Request0(ctx context.Context, evt *event.Event) error
+	// Request1 sends an event and waits synchronously for a single correlated response using RequestN.
+	Request1(ctx context.Context, evt *event.Event) (*event.Event, error)
+	// RequestN sends an event and streams up to numResults correlated responses into ch.
+	RequestN(ctx context.Context, evt *event.Event, numResults int, ch chan *event.Event) error
+	// Reply sends a correlated response message to originalEvt with the provided data payload.
+	Reply(ctx context.Context, originalEvt *event.Event, data any) error
+	// ReplyType sends a correlated response of a specific replyType to originalEvt with data payload.
+	ReplyType(ctx context.Context, originalEvt *event.Event, replyType event.EventType, data any) error
+	// SendMessage sends a payload to a target (channel or direct client).
+	SendMessage(ctx context.Context, target string, data any) error
+	// Broadcast sends a broadcast payload to a channel.
+	Broadcast(ctx context.Context, channel string, data any) error
+	// SendDirect sends a direct message to a named client.
+	SendDirect(ctx context.Context, targetClient string, data any) error
 	// OnEvent registers a handler callback for all incoming events.
 	OnEvent(handler rawclient.EventHandler) rawclient.UnsubscribeFunc
 	// OnMessage registers a handler callback for incoming TypeMessage events.
@@ -43,15 +57,13 @@ type BrokerClient interface {
 }
 
 // Client is a high-level remote browser control client wrapping BrokerClient.
-// It manages correlation tokens and response channels to provide synchronous
-// and asynchronous APIs for controlling display browsers.
+// It leverages wsbrokerclient's native Request/Reply capabilities to provide
+// synchronous and asynchronous APIs for controlling display browsers.
 type Client struct {
-	raw      BrokerClient
-	logger   zLogger.ZLogger
-	mu       sync.RWMutex
-	waiters  map[string]chan *event.Event
-	unsubEvt rawclient.UnsubscribeFunc
-	closed   bool
+	raw    BrokerClient
+	logger zLogger.ZLogger
+	mu     sync.RWMutex
+	closed bool
 }
 
 // New creates a new remote browser control Client instance wrapping an existing WSBroker client.
@@ -61,62 +73,10 @@ func New(raw BrokerClient, logger zLogger.ZLogger) (*Client, error) {
 		return nil, errors.New("raw wsbroker client cannot be nil")
 	}
 
-	c := &Client{
-		raw:     raw,
-		logger:  logger,
-		waiters: make(map[string]chan *event.Event),
-	}
-
-	// Register global event listener for correlation token resolution
-	c.unsubEvt = c.raw.OnEvent(c.handleIncomingEvent)
-
-	return c, nil
-}
-
-// handleIncomingEvent routes incoming events to pending request waiters matching event.Token.
-func (c *Client) handleIncomingEvent(evt *event.Event) {
-	if evt == nil || evt.Token == "" {
-		return
-	}
-
-	c.mu.RLock()
-	ch, found := c.waiters[evt.Token]
-	c.mu.RUnlock()
-
-	if found {
-		select {
-		case ch <- evt:
-		default:
-			c.logger.Warn().Str("token", evt.Token).Msg("waiter channel blocked or full")
-		}
-	}
-}
-
-// registerWaiter creates and registers a response channel for the specified correlation token.
-func (c *Client) registerWaiter(token string) chan *event.Event {
-	ch := make(chan *event.Event, 1)
-	c.mu.Lock()
-	c.waiters[token] = ch
-	c.mu.Unlock()
-	return ch
-}
-
-// unregisterWaiter removes the response channel associated with the token.
-func (c *Client) unregisterWaiter(token string) {
-	c.mu.Lock()
-	delete(c.waiters, token)
-	c.mu.Unlock()
-}
-
-// generateToken creates a cryptographically unique correlation token.
-func generateToken() string {
-	tok, err := rawclient.GenerateToken()
-	if err == nil && tok != "" {
-		return tok
-	}
-	b := make([]byte, 12)
-	_, _ = rand.Read(b)
-	return fmt.Sprintf("req_%d_%s", time.Now().UnixNano(), hex.EncodeToString(b))
+	return &Client{
+		raw:    raw,
+		logger: logger,
+	}, nil
 }
 
 // RawClient returns the underlying raw WSBroker client instance.
@@ -139,7 +99,7 @@ func (c *Client) ConnectSync(ctx context.Context) error {
 	return c.raw.ConnectSync(ctx)
 }
 
-// Close gracefully closes the client, removes listeners, and closes the underlying broker connection.
+// Close gracefully closes the client and the underlying broker connection.
 func (c *Client) Close() error {
 	c.mu.Lock()
 	if c.closed {
@@ -147,18 +107,59 @@ func (c *Client) Close() error {
 		return nil
 	}
 	c.closed = true
-	if c.unsubEvt != nil {
-		c.unsubEvt()
-		c.unsubEvt = nil
-	}
-	// Drain any pending waiters
-	for token, ch := range c.waiters {
-		delete(c.waiters, token)
-		close(ch)
-	}
 	c.mu.Unlock()
 
 	return c.raw.Close()
+}
+
+// Send transmits an event envelope over the WebSocket connection.
+func (c *Client) Send(ctx context.Context, evt *event.Event) error {
+	return c.raw.Send(ctx, evt)
+}
+
+// Request sends an event envelope and waits synchronously for a correlated response matching evt.ID / evt.Token.
+func (c *Client) Request(ctx context.Context, evt *event.Event) (*event.Event, error) {
+	return c.raw.Request(ctx, evt)
+}
+
+// Request0 sends an event envelope without waiting for any response.
+func (c *Client) Request0(ctx context.Context, evt *event.Event) error {
+	return c.raw.Request0(ctx, evt)
+}
+
+// Request1 sends an event envelope and waits synchronously for a single correlated response.
+func (c *Client) Request1(ctx context.Context, evt *event.Event) (*event.Event, error) {
+	return c.raw.Request1(ctx, evt)
+}
+
+// RequestN sends an event envelope and streams up to numResults correlated responses into ch.
+func (c *Client) RequestN(ctx context.Context, evt *event.Event, numResults int, ch chan *event.Event) error {
+	return c.raw.RequestN(ctx, evt, numResults, ch)
+}
+
+// Reply sends a correlated TypeMessage response event to originalEvt carrying data payload.
+func (c *Client) Reply(ctx context.Context, originalEvt *event.Event, data any) error {
+	return c.raw.Reply(ctx, originalEvt, data)
+}
+
+// ReplyType sends a correlated response event of the specified replyType to originalEvt.
+func (c *Client) ReplyType(ctx context.Context, originalEvt *event.Event, replyType event.EventType, data any) error {
+	return c.raw.ReplyType(ctx, originalEvt, replyType, data)
+}
+
+// SendMessage sends a payload to a target (channel or direct client).
+func (c *Client) SendMessage(ctx context.Context, target string, data any) error {
+	return c.raw.SendMessage(ctx, target, data)
+}
+
+// Broadcast sends a broadcast payload to a channel.
+func (c *Client) Broadcast(ctx context.Context, channel string, data any) error {
+	return c.raw.Broadcast(ctx, channel, data)
+}
+
+// SendDirect sends a direct message to a named client.
+func (c *Client) SendDirect(ctx context.Context, targetClient string, data any) error {
+	return c.raw.SendDirect(ctx, targetClient, data)
 }
 
 // OnEvent registers a listener callback for all incoming events.
@@ -189,10 +190,6 @@ func (c *Client) Navigate(ctx context.Context, target string, targetURL string, 
 		selector = waitSelector[0]
 	}
 
-	token := generateToken()
-	ch := c.registerWaiter(token)
-	defer c.unregisterWaiter(token)
-
 	cmd := CommandMessage{
 		Action:   ActionNavigate,
 		Event:    "display:navigate",
@@ -204,36 +201,27 @@ func (c *Client) Navigate(ctx context.Context, target string, targetURL string, 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create navigate command event")
 	}
-	evt.Token = token
 
-	if err := c.raw.Send(ctx, evt); err != nil {
+	respEvt, err := c.raw.Request(ctx, evt)
+	if err != nil {
 		return nil, errors.Wrap(err, "failed to send navigate command")
 	}
-
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case respEvt := <-ch:
-		if respEvt == nil {
-			return nil, errors.New("client closed before response received")
-		}
-		var resp NavigateResponse
-		if err := respEvt.UnmarshalData(&resp); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal navigate response")
-		}
-		if resp.Status != "ok" && resp.Error != "" {
-			return &resp, errors.Errorf("navigate error: %s", resp.Error)
-		}
-		return &resp, nil
+	if respEvt == nil {
+		return nil, errors.New("nil response received for navigate request")
 	}
+
+	var resp NavigateResponse
+	if err := respEvt.UnmarshalData(&resp); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal navigate response")
+	}
+	if resp.Status != "ok" && resp.Error != "" {
+		return &resp, errors.Errorf("navigate error: %s", resp.Error)
+	}
+	return &resp, nil
 }
 
 // GetURL queries the current primary page location URL of the target display client synchronously.
 func (c *Client) GetURL(ctx context.Context, target string) (string, error) {
-	token := generateToken()
-	ch := c.registerWaiter(token)
-	defer c.unregisterWaiter(token)
-
 	cmd := CommandMessage{
 		Action: ActionGetURL,
 		Event:  "display:geturl",
@@ -243,28 +231,23 @@ func (c *Client) GetURL(ctx context.Context, target string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "failed to create geturl command event")
 	}
-	evt.Token = token
 
-	if err := c.raw.Send(ctx, evt); err != nil {
+	respEvt, err := c.raw.Request(ctx, evt)
+	if err != nil {
 		return "", errors.Wrap(err, "failed to send geturl command")
 	}
-
-	select {
-	case <-ctx.Done():
-		return "", ctx.Err()
-	case respEvt := <-ch:
-		if respEvt == nil {
-			return "", errors.New("client closed before response received")
-		}
-		var resp URLResponse
-		if err := respEvt.UnmarshalData(&resp); err != nil {
-			return "", errors.Wrap(err, "failed to unmarshal geturl response")
-		}
-		if resp.Error != "" {
-			return "", errors.Errorf("geturl error: %s", resp.Error)
-		}
-		return resp.URL, nil
+	if respEvt == nil {
+		return "", errors.New("nil response received for geturl request")
 	}
+
+	var resp URLResponse
+	if err := respEvt.UnmarshalData(&resp); err != nil {
+		return "", errors.Wrap(err, "failed to unmarshal geturl response")
+	}
+	if resp.Error != "" {
+		return "", errors.Errorf("geturl error: %s", resp.Error)
+	}
+	return resp.URL, nil
 }
 
 // GetScreenshot requests a bounded viewport screenshot from the target display client synchronously.
@@ -280,10 +263,6 @@ func (c *Client) GetScreenshot(ctx context.Context, target string, opts ...Scree
 		}
 	}
 
-	token := generateToken()
-	ch := c.registerWaiter(token)
-	defer c.unregisterWaiter(token)
-
 	cmd := CommandMessage{
 		Action:  ActionGetScreenshot,
 		Event:   "display:getscreenshot",
@@ -295,46 +274,37 @@ func (c *Client) GetScreenshot(ctx context.Context, target string, opts ...Scree
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create getscreenshot command event")
 	}
-	evt.Token = token
 
-	if err := c.raw.Send(ctx, evt); err != nil {
+	respEvt, err := c.raw.Request(ctx, evt)
+	if err != nil {
 		return nil, errors.Wrap(err, "failed to send getscreenshot command")
 	}
-
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case respEvt := <-ch:
-		if respEvt == nil {
-			return nil, errors.New("client closed before response received")
-		}
-		if respEvt.Type == event.TypeFile {
-			var fileMsg event.FileMessage
-			if err := respEvt.UnmarshalData(&fileMsg); err != nil {
-				return nil, errors.Wrap(err, "failed to unmarshal screenshot file message")
-			}
-			return &ScreenshotResult{
-				Filename: fileMsg.Filename,
-				MimeType: fileMsg.MimeType,
-				Data:     fileMsg.Data,
-			}, nil
-		}
-
-		// Check if an error message response was returned
-		var resp ScreenshotResponse
-		if err := respEvt.UnmarshalData(&resp); err == nil && resp.Error != "" {
-			return nil, errors.Errorf("screenshot error: %s", resp.Error)
-		}
-		return nil, errors.New("unexpected response payload received for screenshot request")
+	if respEvt == nil {
+		return nil, errors.New("nil response received for getscreenshot request")
 	}
+
+	if respEvt.Type == event.TypeFile {
+		var fileMsg event.FileMessage
+		if err := respEvt.UnmarshalData(&fileMsg); err != nil {
+			return nil, errors.Wrap(err, "failed to unmarshal screenshot file message")
+		}
+		return &ScreenshotResult{
+			Filename: fileMsg.Filename,
+			MimeType: fileMsg.MimeType,
+			Data:     fileMsg.Data,
+		}, nil
+	}
+
+	// Check if an error message response was returned
+	var resp ScreenshotResponse
+	if err := respEvt.UnmarshalData(&resp); err == nil && resp.Error != "" {
+		return nil, errors.Errorf("screenshot error: %s", resp.Error)
+	}
+	return nil, errors.New("unexpected response payload received for screenshot request")
 }
 
 // GetStatus queries the telemetry dashboard data of the target display client synchronously.
 func (c *Client) GetStatus(ctx context.Context, target string) (*rest.DashboardData, error) {
-	token := generateToken()
-	ch := c.registerWaiter(token)
-	defer c.unregisterWaiter(token)
-
 	cmd := CommandMessage{
 		Action: ActionGetStatus,
 		Event:  "display:getstatus",
@@ -344,34 +314,29 @@ func (c *Client) GetStatus(ctx context.Context, target string) (*rest.DashboardD
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create getstatus command event")
 	}
-	evt.Token = token
 
-	if err := c.raw.Send(ctx, evt); err != nil {
+	respEvt, err := c.raw.Request(ctx, evt)
+	if err != nil {
 		return nil, errors.Wrap(err, "failed to send getstatus command")
 	}
-
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case respEvt := <-ch:
-		if respEvt == nil {
-			return nil, errors.New("client closed before response received")
-		}
-		var resp StatusResponse
-		if err := respEvt.UnmarshalData(&resp); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal getstatus response")
-		}
-		if resp.Status != "ok" && resp.Error != "" {
-			return nil, errors.Errorf("getstatus error: %s", resp.Error)
-		}
-		if resp.Error != "" {
-			return nil, errors.Errorf("getstatus error: %s", resp.Error)
-		}
-		if resp.Data == nil {
-			return nil, errors.New("getstatus response missing data payload")
-		}
-		return resp.Data, nil
+	if respEvt == nil {
+		return nil, errors.New("nil response received for getstatus request")
 	}
+
+	var resp StatusResponse
+	if err := respEvt.UnmarshalData(&resp); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal getstatus response")
+	}
+	if resp.Status != "ok" && resp.Error != "" {
+		return nil, errors.Errorf("getstatus error: %s", resp.Error)
+	}
+	if resp.Error != "" {
+		return nil, errors.Errorf("getstatus error: %s", resp.Error)
+	}
+	if resp.Data == nil {
+		return nil, errors.New("getstatus response missing data payload")
+	}
+	return resp.Data, nil
 }
 
 // SendNavigate transmits an asynchronous (fire-and-forget) navigation command.
@@ -389,7 +354,7 @@ func (c *Client) SendNavigate(ctx context.Context, target string, targetURL stri
 	if len(token) > 0 && token[0] != "" {
 		evt.Token = token[0]
 	}
-	return c.raw.Send(ctx, evt)
+	return c.raw.Request0(ctx, evt)
 }
 
 // SendGetURL transmits an asynchronous (fire-and-forget) geturl command.
@@ -405,7 +370,7 @@ func (c *Client) SendGetURL(ctx context.Context, target string, token ...string)
 	if len(token) > 0 && token[0] != "" {
 		evt.Token = token[0]
 	}
-	return c.raw.Send(ctx, evt)
+	return c.raw.Request0(ctx, evt)
 }
 
 // SendGetScreenshot transmits an asynchronous (fire-and-forget) getscreenshot command.
@@ -423,7 +388,7 @@ func (c *Client) SendGetScreenshot(ctx context.Context, target string, format st
 	if len(token) > 0 && token[0] != "" {
 		evt.Token = token[0]
 	}
-	return c.raw.Send(ctx, evt)
+	return c.raw.Request0(ctx, evt)
 }
 
 // SendGetStatus transmits an asynchronous (fire-and-forget) getstatus command.
@@ -439,5 +404,5 @@ func (c *Client) SendGetStatus(ctx context.Context, target string, token ...stri
 	if len(token) > 0 && token[0] != "" {
 		evt.Token = token[0]
 	}
-	return c.raw.Send(ctx, evt)
+	return c.raw.Request0(ctx, evt)
 }
