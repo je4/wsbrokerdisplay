@@ -190,8 +190,8 @@
             </div>
         </div>
 
+        <div id="websocket-message-log" class="overflow-x-auto overflow-y-auto h-64 rounded-xl border border-base-200">
         {{if .Messages}}
-        <div class="overflow-x-auto overflow-y-auto max-h-96 rounded-xl border border-base-200">
             <table class="table table-zebra table-pin-rows table-xs sm:table-sm w-full font-mono">
                 <thead>
                     <tr>
@@ -226,12 +226,12 @@
                     {{end}}
                 </tbody>
             </table>
-        </div>
         {{else}}
-        <div class="alert alert-info shadow-sm text-xs font-mono">
-            <span class="app-icon icon-external-link w-4 h-4 shrink-0" aria-hidden="true"></span>
-            <span>No WebSocket messages received yet. Waiting for broker traffic...</span>
-        </div>
+            <div class="alert alert-info shadow-sm text-xs font-mono">
+                <span class="app-icon icon-external-link w-4 h-4 shrink-0" aria-hidden="true"></span>
+                <span>No WebSocket messages received yet. Waiting for broker traffic...</span>
+            </div>
         {{end}}
+        </div>
     </div>
 </div>

@@ -563,6 +563,37 @@ func TestMessageLog(t *testing.T) {
 	}
 }
 
+func TestMessageLogMaximumCapacity(t *testing.T) {
+	log := NewMessageLog(101)
+	if log.Capacity() != 100 {
+		t.Fatalf("expected capacity to be capped at 100, got %d", log.Capacity())
+	}
+
+	for i := 0; i < 101; i++ {
+		log.Add(WSMessage{Data: fmt.Sprintf("message-%03d", i)})
+	}
+	if log.Len() != 100 {
+		t.Fatalf("expected at most 100 messages, got %d", log.Len())
+	}
+	chronological := log.GetAllChronological()
+	if chronological[0].Data != "message-001" || chronological[len(chronological)-1].Data != "message-100" {
+		t.Fatalf("expected oldest entry to be evicted while retaining newest entries, got %q through %q", chronological[0].Data, chronological[len(chronological)-1].Data)
+	}
+
+	log.SetCapacity(101)
+	if log.Capacity() != 100 || log.Len() != 100 {
+		t.Fatalf("expected SetCapacity to enforce the 100-entry ceiling, got capacity %d and length %d", log.Capacity(), log.Len())
+	}
+	log.SetCapacity(2)
+	if log.Capacity() != 2 || log.Len() != 2 {
+		t.Fatalf("expected smaller capacities to remain configurable, got capacity %d and length %d", log.Capacity(), log.Len())
+	}
+	chronological = log.GetAllChronological()
+	if chronological[0].Data != "message-099" || chronological[1].Data != "message-100" {
+		t.Fatalf("expected downsizing to retain the newest messages, got %+v", chronological)
+	}
+}
+
 func TestMessagesEndpointAndDashboardCards(t *testing.T) {
 	logger := zerolog.Nop()
 
@@ -643,6 +674,28 @@ func TestMessagesEndpointAndDashboardCards(t *testing.T) {
 		}
 		if !strings.Contains(body, "IN") || !strings.Contains(body, "OUT") {
 			t.Errorf("expected cards template to contain direction badges IN and OUT")
+		}
+		if !strings.Contains(body, `id="websocket-message-log"`) || !strings.Contains(body, "h-64") || !strings.Contains(body, "overflow-y-auto") {
+			t.Errorf("expected populated message log to use the fixed-height scroll container")
+		}
+	}
+
+	// The log container should keep its fixed size and scrolling behavior when empty.
+	msgLog.Clear()
+	{
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/dashboard/cards", nil)
+		req.RemoteAddr = "127.0.0.1:12345"
+		ctrl.router.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 for empty GET /dashboard/cards, got %d: %s", w.Code, w.Body.String())
+		}
+		body := w.Body.String()
+		if !strings.Contains(body, `id="websocket-message-log"`) || !strings.Contains(body, "h-64") || !strings.Contains(body, "overflow-y-auto") {
+			t.Errorf("expected empty message log to keep the fixed-height scroll container")
+		}
+		if !strings.Contains(body, "No WebSocket messages received yet") {
+			t.Errorf("expected empty message log waiting message")
 		}
 	}
 }

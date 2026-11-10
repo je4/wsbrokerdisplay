@@ -7,6 +7,8 @@ import (
 	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
 )
 
+const maxMessageLogCapacity = 100
+
 // MessageLog stores a thread-safe rolling buffer of recent WebSocket messages.
 type MessageLog struct {
 	mu       sync.RWMutex
@@ -16,8 +18,8 @@ type MessageLog struct {
 
 // NewMessageLog creates a new MessageLog with the given maximum message capacity.
 func NewMessageLog(capacity int) *MessageLog {
-	if capacity <= 0 {
-		capacity = 100
+	if capacity <= 0 || capacity > maxMessageLogCapacity {
+		capacity = maxMessageLogCapacity
 	}
 	return &MessageLog{
 		capacity: capacity,
@@ -34,8 +36,8 @@ func (ml *MessageLog) Capacity() int {
 
 // SetCapacity updates the maximum capacity and trims entries if necessary.
 func (ml *MessageLog) SetCapacity(capacity int) {
-	if capacity <= 0 {
-		capacity = 100
+	if capacity <= 0 || capacity > maxMessageLogCapacity {
+		capacity = maxMessageLogCapacity
 	}
 	ml.mu.Lock()
 	defer ml.mu.Unlock()

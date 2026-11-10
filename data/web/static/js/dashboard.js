@@ -6,6 +6,7 @@
     'use strict';
 
     let ntpOffsetNanos = 0;
+    let messageLogScrollTop = null;
 
     function parseOffsetFromDOM() {
         const offsetEl = document.getElementById('ntp-status-badge');
@@ -55,9 +56,29 @@
         setInterval(updateClock, 200);
     });
 
-    // Re-parse NTP offset when HTMX swaps content
-    document.addEventListener('htmx:after:swap', function() {
+    // Preserve the message log scroll position across dashboard card refreshes.
+    document.addEventListener('htmx:before:swap', function(event) {
+        const target = event.detail && event.detail.target;
+        if (!target || target.id !== 'metric-cards-container') return;
+
+        const messageLog = document.getElementById('websocket-message-log');
+        messageLogScrollTop = messageLog ? messageLog.scrollTop : null;
+    });
+
+    // Re-parse NTP offset and restore the message log position after HTMX swaps.
+    document.addEventListener('htmx:after:swap', function(event) {
         parseOffsetFromDOM();
+
+        const target = event.detail && event.detail.target;
+        if (!target || target.id !== 'metric-cards-container') return;
+
+        if (messageLogScrollTop !== null) {
+            const messageLog = document.getElementById('websocket-message-log');
+            if (messageLog) {
+                messageLog.scrollTop = messageLogScrollTop;
+            }
+        }
+        messageLogScrollTop = null;
     });
 
 })();
