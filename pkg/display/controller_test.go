@@ -11,6 +11,7 @@ import (
 	"github.com/je4/utils/v2/pkg/zLogger"
 	"github.com/je4/wsbrokerdisplay/pkg/browser"
 	"github.com/je4/wsbrokerdisplay/pkg/rest"
+	"github.com/je4/wsbrokerdisplayclient/pkg/displayclient"
 	"github.com/rs/zerolog"
 	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/client"
 	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
@@ -529,9 +530,9 @@ func TestController_GetStatus_Success(t *testing.T) {
 
 	now := time.Now().UTC()
 	statusCalled := false
-	mockProvider := func() rest.DashboardData {
+	mockProvider := func() displayclient.DashboardData {
 		statusCalled = true
-		return rest.DashboardData{
+		return displayclient.DashboardData{
 			ClientName: "display01",
 			WSBroker:   "wss://broker.example.com",
 			Channels:   []string{"display", "default"},
@@ -544,7 +545,7 @@ func TestController_GetStatus_Success(t *testing.T) {
 			GoVersion:  "go1.22",
 			Uptime:     "10m",
 			StartTime:  now,
-			BrowserConfig: rest.BrowserInfo{
+			BrowserConfig: displayclient.BrowserInfo{
 				Kiosk:    true,
 				Headless: false,
 				Width:    1920,

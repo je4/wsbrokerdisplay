@@ -5,11 +5,12 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/je4/wsbrokerdisplayclient/pkg/displayclient"
 	_ "go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/ntp"
 )
 
 type dashboardTemplateData struct {
-	DashboardData
+	displayclient.DashboardData
 	NTPBadgeOOB bool
 }
 
@@ -45,7 +46,7 @@ func (ctrl *controller) dashboardCards(c *gin.Context) {
 //	@Description	returns comprehensive dashboard telemetry, metadata, and NTP synchronization status
 //	@Tags			wsbrokerdisplay
 //	@Produce		json
-//	@Success		200		{object}	DashboardData
+//	@Success		200		{object}	displayclient.DashboardData
 //	@Router			/status [get]
 func (ctrl *controller) status(c *gin.Context) {
 	data := ctrl.getDashboardData()

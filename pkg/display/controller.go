@@ -14,7 +14,7 @@ import (
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/zLogger"
 	"github.com/je4/wsbrokerdisplay/pkg/browser"
-	"github.com/je4/wsbrokerdisplay/pkg/rest"
+	"github.com/je4/wsbrokerdisplayclient/pkg/displayclient"
 	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/client"
 	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
 )
@@ -53,7 +53,7 @@ type Controller struct {
 	timeout        time.Duration
 	unsubscribes   []client.UnsubscribeFunc
 	onSend         func(evt *event.RawEvent)
-	statusProvider func() rest.DashboardData
+	statusProvider func() displayclient.DashboardData
 	mu             sync.Mutex
 }
 
@@ -77,7 +77,7 @@ func WithOnSend(fn func(evt *event.RawEvent)) Option {
 }
 
 // WithStatusProvider sets a callback for providing live display telemetry.
-func WithStatusProvider(fn func() rest.DashboardData) Option {
+func WithStatusProvider(fn func() displayclient.DashboardData) Option {
 	return func(c *Controller) {
 		c.statusProvider = fn
 	}

@@ -8,51 +8,7 @@ const docTemplateWSBrokerDisplay = `{
     "schemes": {{ marshal .Schemes }},
     "components": {
         "schemas": {
-            "github_com_je4_wsbrokerdisplay_pkg_ntp.NTPStatus": {
-                "properties": {
-                    "error": {
-                        "type": "string"
-                    },
-                    "last_sync": {
-                        "type": "string"
-                    },
-                    "leap_indicator": {
-                        "type": "string"
-                    },
-                    "offset": {
-                        "type": "string"
-                    },
-                    "offset_nanos": {
-                        "$ref": "#/components/schemas/time.Duration"
-                    },
-                    "precision": {
-                        "type": "string"
-                    },
-                    "reference_id": {
-                        "type": "string"
-                    },
-                    "rtt": {
-                        "type": "string"
-                    },
-                    "rtt_nanos": {
-                        "$ref": "#/components/schemas/time.Duration"
-                    },
-                    "server": {
-                        "type": "string"
-                    },
-                    "stratum": {
-                        "type": "integer"
-                    },
-                    "synced": {
-                        "type": "boolean"
-                    },
-                    "time": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "pkg_rest.BrowserInfo": {
+            "displayclient.BrowserInfo": {
                 "properties": {
                     "address": {
                         "type": "string"
@@ -72,7 +28,7 @@ const docTemplateWSBrokerDisplay = `{
                 },
                 "type": "object"
             },
-            "pkg_rest.DashboardData": {
+            "displayclient.DashboardData": {
                 "properties": {
                     "addr": {
                         "type": "string"
@@ -81,7 +37,7 @@ const docTemplateWSBrokerDisplay = `{
                         "type": "string"
                     },
                     "browser": {
-                        "$ref": "#/components/schemas/pkg_rest.BrowserInfo"
+                        "$ref": "#/components/schemas/displayclient.BrowserInfo"
                     },
                     "channels": {
                         "items": {
@@ -102,8 +58,15 @@ const docTemplateWSBrokerDisplay = `{
                     "hostname": {
                         "type": "string"
                     },
+                    "messages": {
+                        "items": {
+                            "$ref": "#/components/schemas/displayclient.WSMessage"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
                     "ntp": {
-                        "$ref": "#/components/schemas/github_com_je4_wsbrokerdisplay_pkg_ntp.NTPStatus"
+                        "$ref": "#/components/schemas/ntp.NTPStatus"
                     },
                     "os": {
                         "type": "string"
@@ -123,28 +86,123 @@ const docTemplateWSBrokerDisplay = `{
                 },
                 "type": "object"
             },
-            "time.Duration": {
-                "enum": [
-                    -9223372036854775808,
-                    9223372036854775807,
-                    1,
-                    1000,
-                    1000000,
-                    1000000000,
-                    60000000000,
-                    3600000000000
-                ],
-                "type": "integer",
-                "x-enum-varnames": [
-                    "minDuration",
-                    "maxDuration",
-                    "Nanosecond",
-                    "Microsecond",
-                    "Millisecond",
-                    "Second",
-                    "Minute",
-                    "Hour"
-                ]
+            "displayclient.WSMessage": {
+                "properties": {
+                    "channel": {
+                        "type": "string"
+                    },
+                    "data": {
+                        "type": "string"
+                    },
+                    "direction": {
+                        "description": "\"in\" (received) or \"out\" (sent)",
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "refID": {
+                        "type": "string"
+                    },
+                    "session": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "timestamp": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "description": "\"message\", \"file\", \"ping\", \"pong\", \"attach\", etc.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "ntp.NTPStatus": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "last_sync": {
+                        "type": "string"
+                    },
+                    "leap_indicator": {
+                        "type": "string"
+                    },
+                    "offset": {
+                        "type": "string"
+                    },
+                    "offset_nanos": {
+                        "type": "integer"
+                    },
+                    "precision": {
+                        "type": "string"
+                    },
+                    "reference_id": {
+                        "type": "string"
+                    },
+                    "rtt": {
+                        "type": "string"
+                    },
+                    "rtt_nanos": {
+                        "type": "integer"
+                    },
+                    "server": {
+                        "type": "string"
+                    },
+                    "stratum": {
+                        "type": "integer"
+                    },
+                    "synced": {
+                        "type": "boolean"
+                    },
+                    "time": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "pkg_rest.WSMessage": {
+                "properties": {
+                    "channel": {
+                        "type": "string"
+                    },
+                    "data": {
+                        "type": "string"
+                    },
+                    "direction": {
+                        "description": "\"in\" (received) or \"out\" (sent)",
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "refID": {
+                        "type": "string"
+                    },
+                    "session": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "timestamp": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "description": "\"message\", \"file\", \"ping\", \"pong\", \"attach\", etc.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
             }
         }
     },
@@ -168,6 +226,31 @@ const docTemplateWSBrokerDisplay = `{
         "url": ""
     },
     "paths": {
+        "/messages": {
+            "get": {
+                "description": "returns rolling buffer of recent incoming and outgoing WebSocket messages",
+                "operationId": "get-messages",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/pkg_rest.WSMessage"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "summary": "get recent WebSocket message log",
+                "tags": [
+                    "wsbrokerdisplay"
+                ]
+            }
+        },
         "/ntp": {
             "get": {
                 "description": "returns live NTP synchronization metrics and clock offset",
@@ -177,7 +260,7 @@ const docTemplateWSBrokerDisplay = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/github_com_je4_wsbrokerdisplay_pkg_ntp.NTPStatus"
+                                    "$ref": "#/components/schemas/ntp.NTPStatus"
                                 }
                             }
                         },
@@ -221,7 +304,7 @@ const docTemplateWSBrokerDisplay = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/pkg_rest.DashboardData"
+                                    "$ref": "#/components/schemas/displayclient.DashboardData"
                                 }
                             }
                         },

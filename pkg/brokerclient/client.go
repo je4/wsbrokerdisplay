@@ -10,7 +10,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/zLogger"
-	"github.com/je4/wsbrokerdisplay/pkg/rest"
+	"github.com/je4/wsbrokerdisplayclient/pkg/displayclient"
 	rawclient "go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/client"
 	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
 )
@@ -304,7 +304,7 @@ func (c *Client) GetScreenshot(ctx context.Context, target string, opts ...Scree
 }
 
 // GetStatus queries the telemetry dashboard data of the target display client synchronously.
-func (c *Client) GetStatus(ctx context.Context, target string) (*rest.DashboardData, error) {
+func (c *Client) GetStatus(ctx context.Context, target string) (*displayclient.DashboardData, error) {
 	cmd := CommandMessage{
 		Action: ActionGetStatus,
 		Event:  "display:getstatus",

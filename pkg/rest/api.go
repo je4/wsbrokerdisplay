@@ -22,6 +22,7 @@ import (
 	"github.com/je4/utils/v2/pkg/zLogger"
 	"github.com/je4/wsbrokerdisplay/data"
 	"github.com/je4/wsbrokerdisplay/pkg/rest/docs"
+	"github.com/je4/wsbrokerdisplayclient/pkg/displayclient"
 	"go.ub.unibas.ch/cloud/swaggerui"
 )
 
@@ -29,7 +30,7 @@ import (
 const BASEPATH = "/api/v1"
 
 // DataProvider is a function that retrieves a fresh snapshot of the dashboard telemetry and metadata.
-type DataProvider func() DashboardData
+type DataProvider func() displayclient.DashboardData
 
 // Option defines a functional configuration option for the REST controller.
 type Option func(ctrl *controller)
@@ -195,7 +196,7 @@ func (ctrl *controller) Init() error {
 	return nil
 }
 
-func (ctrl *controller) getDashboardData() DashboardData {
+func (ctrl *controller) getDashboardData() displayclient.DashboardData {
 	if ctrl.dataProvider != nil {
 		return ctrl.dataProvider()
 	}
@@ -203,7 +204,7 @@ func (ctrl *controller) getDashboardData() DashboardData {
 	hostname, _ := os.Hostname()
 	uptime := time.Since(ctrl.startTime).Truncate(time.Second).String()
 
-	return DashboardData{
+	return displayclient.DashboardData{
 		Addr:      ctrl.addr,
 		ExtAddr:   ctrl.extAddr,
 		Hostname:  hostname,

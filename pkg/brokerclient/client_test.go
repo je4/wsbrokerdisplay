@@ -9,7 +9,7 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/zLogger"
-	"github.com/je4/wsbrokerdisplay/pkg/rest"
+	"github.com/je4/wsbrokerdisplayclient/pkg/displayclient"
 	"github.com/rs/zerolog"
 	rawclient "go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/client"
 	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
@@ -353,7 +353,7 @@ func TestResponseSerialization(t *testing.T) {
 	statResp := StatusResponse{
 		Action: ActionGetStatusResponse,
 		Status: "ok",
-		Data: &rest.DashboardData{
+		Data: &displayclient.DashboardData{
 			ClientName: "disp-101",
 			Hostname:   "node-alpha",
 			OS:         "linux",
@@ -543,7 +543,7 @@ func TestGetStatusMethod(t *testing.T) {
 					Event:  "display:getstatus_response",
 					Action: ActionGetStatusResponse,
 					Status: "ok",
-					Data: &rest.DashboardData{
+					Data: &displayclient.DashboardData{
 						ClientName: "display01",
 						Hostname:   "node-display",
 						OS:         "linux",

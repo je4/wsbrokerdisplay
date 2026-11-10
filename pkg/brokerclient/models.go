@@ -1,7 +1,7 @@
 package brokerclient
 
 import (
-	"github.com/je4/wsbrokerdisplay/pkg/rest"
+	"github.com/je4/wsbrokerdisplayclient/pkg/displayclient"
 )
 
 // Action constants for remote browser control commands and responses.
@@ -87,7 +87,7 @@ type StatusResponse struct {
 	// Status indicates operation outcome ("ok" or "error").
 	Status string `json:"status"`
 	// Data contains the telemetry dashboard data when status is "ok".
-	Data *rest.DashboardData `json:"data,omitempty"`
+	Data *displayclient.DashboardData `json:"data,omitempty"`
 	// Error contains an error description if status retrieval failed.
 	Error string `json:"error,omitempty"`
 }

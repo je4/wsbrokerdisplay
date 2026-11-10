@@ -16,6 +16,7 @@ import (
 	"github.com/je4/wsbrokerdisplay/pkg/browser"
 	"github.com/je4/wsbrokerdisplay/pkg/display"
 	"github.com/je4/wsbrokerdisplay/pkg/rest"
+	"github.com/je4/wsbrokerdisplayclient/pkg/displayclient"
 	"github.com/rs/zerolog"
 	rawclient "go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/client"
 	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
@@ -137,12 +138,12 @@ func main() {
 	}
 
 	// 7. Initialize REST controller with live telemetry data provider
-	dataProvider := func() rest.DashboardData {
+	dataProvider := func() displayclient.DashboardData {
 		hostname, _ := os.Hostname()
 		ntpStatus := ntpSvc.Status()
 		browserCfg := conf.Browser
 
-		return rest.DashboardData{
+		return displayclient.DashboardData{
 			ClientName: conf.Name,
 			WSBroker:   conf.WSBroker,
 			Channels:   conf.Channels,
@@ -155,7 +156,7 @@ func main() {
 			GoVersion:  runtime.Version(),
 			Uptime:     time.Since(appStartTime).Truncate(time.Second).String(),
 			StartTime:  appStartTime,
-			BrowserConfig: rest.BrowserInfo{
+			BrowserConfig: displayclient.BrowserInfo{
 				Kiosk:    browserCfg.Kiosk,
 				Headless: browserCfg.Headless,
 				Width:    browserCfg.WindowWidth,

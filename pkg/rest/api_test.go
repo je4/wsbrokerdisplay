@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/je4/wsbrokerdisplayclient/pkg/displayclient"
 	"github.com/rs/zerolog"
 )
 
@@ -204,7 +205,7 @@ func TestStartAndGracefulStop(t *testing.T) {
 func TestDashboardAndStaticRoutes(t *testing.T) {
 	logger := zerolog.Nop()
 
-	data := DashboardData{
+	data := displayclient.DashboardData{
 		ClientName: "test-display-01",
 		WSBroker:   "https://broker.example.com",
 		Channels:   []string{"general", "alerts"},
@@ -217,7 +218,7 @@ func TestDashboardAndStaticRoutes(t *testing.T) {
 		GoVersion:  "go1.22",
 		Uptime:     "1h23m45s",
 		StartTime:  time.Now().UTC().Add(-time.Hour),
-		BrowserConfig: BrowserInfo{
+		BrowserConfig: displayclient.BrowserInfo{
 			Kiosk:    false,
 			Headless: false,
 			Width:    1920,
@@ -242,7 +243,7 @@ func TestDashboardAndStaticRoutes(t *testing.T) {
 	data.NTP.Stratum = 2
 	data.NTP.ReferenceID = "192.168.1.1"
 
-	ctrl, err := NewController(":0", "http://localhost:8760", &logger, WithDataProvider(func() DashboardData {
+	ctrl, err := NewController(":0", "http://localhost:8760", &logger, WithDataProvider(func() displayclient.DashboardData {
 		return data
 	}))
 	if err != nil {
@@ -333,12 +334,12 @@ func TestDashboardAndStaticRoutes(t *testing.T) {
 
 func TestDashboardNTPBadgeOOBUpdates(t *testing.T) {
 	logger := zerolog.Nop()
-	data := DashboardData{ClientName: "ntp-test-client"}
+	data := displayclient.DashboardData{ClientName: "ntp-test-client"}
 	data.NTP.Synced = false
 	data.NTP.OffsetString = "+0.500ms"
 	data.NTP.OffsetNanos = 500000
 
-	ctrl, err := NewController(":0", "http://localhost:8760", &logger, WithDataProvider(func() DashboardData {
+	ctrl, err := NewController(":0", "http://localhost:8760", &logger, WithDataProvider(func() displayclient.DashboardData {
 		return data
 	}))
 	if err != nil {
@@ -413,7 +414,7 @@ func TestDashboardNTPBadgeOOBUpdates(t *testing.T) {
 func TestStatusAndNTPEndpoints(t *testing.T) {
 	logger := zerolog.Nop()
 
-	data := DashboardData{
+	data := displayclient.DashboardData{
 		ClientName: "status-test-client",
 		WSBroker:   "wss://broker.test:8765",
 		Channels:   []string{"screen1"},
@@ -434,7 +435,7 @@ func TestStatusAndNTPEndpoints(t *testing.T) {
 	data.NTP.Stratum = 1
 	data.NTP.ReferenceID = "GPS"
 
-	ctrl, err := NewController(":0", "http://localhost:8760", &logger, WithDataProvider(func() DashboardData {
+	ctrl, err := NewController(":0", "http://localhost:8760", &logger, WithDataProvider(func() displayclient.DashboardData {
 		return data
 	}))
 	if err != nil {
@@ -451,7 +452,7 @@ func TestStatusAndNTPEndpoints(t *testing.T) {
 			t.Errorf("expected 200 for GET /api/v1/status, got %d", w.Code)
 		}
 
-		var received DashboardData
+		var received displayclient.DashboardData
 		if err := json.Unmarshal(w.Body.Bytes(), &received); err != nil {
 			t.Fatalf("failed to unmarshal JSON response: %v", err)
 		}
@@ -617,8 +618,8 @@ func TestMessagesEndpointAndDashboardCards(t *testing.T) {
 		Data:      `{"action":"navigate_response","status":"ok"}`,
 	})
 
-	ctrl, err := NewController(":0", "http://localhost:8760", &logger, WithDataProvider(func() DashboardData {
-		return DashboardData{
+	ctrl, err := NewController(":0", "http://localhost:8760", &logger, WithDataProvider(func() displayclient.DashboardData {
+		return displayclient.DashboardData{
 			ClientName: "display01",
 			Messages:   msgLog.GetAll(),
 		}
