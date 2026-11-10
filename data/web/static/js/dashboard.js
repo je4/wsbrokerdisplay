@@ -8,7 +8,7 @@
     let ntpOffsetNanos = 0;
 
     function parseOffsetFromDOM() {
-        const offsetEl = document.getElementById('ntp-offset-data');
+        const offsetEl = document.getElementById('ntp-status-badge');
         if (offsetEl && offsetEl.dataset.offsetNanos) {
             const nanos = parseInt(offsetEl.dataset.offsetNanos, 10);
             if (!isNaN(nanos)) {
@@ -56,7 +56,7 @@
     });
 
     // Re-parse NTP offset when HTMX swaps content
-    document.addEventListener('htmx:afterSwap', function() {
+    document.addEventListener('htmx:after:swap', function() {
         parseOffsetFromDOM();
     });
 

@@ -3,6 +3,7 @@ package rest
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net"
 	"net/http"
@@ -326,6 +327,85 @@ func TestDashboardAndStaticRoutes(t *testing.T) {
 		}
 		if !strings.Contains(w.Body.String(), "updateClock") {
 			t.Errorf("expected JS content in /static/js/dashboard.js")
+		}
+	}
+}
+
+func TestDashboardNTPBadgeOOBUpdates(t *testing.T) {
+	logger := zerolog.Nop()
+	data := DashboardData{ClientName: "ntp-test-client"}
+	data.NTP.Synced = false
+	data.NTP.OffsetString = "+0.500ms"
+	data.NTP.OffsetNanos = 500000
+
+	ctrl, err := NewController(":0", "http://localhost:8760", &logger, WithDataProvider(func() DashboardData {
+		return data
+	}))
+	if err != nil {
+		t.Fatalf("failed to create controller: %v", err)
+	}
+
+	request := func(path string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.RemoteAddr = "127.0.0.1:12345"
+		ctrl.router.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 for GET %s, got %d: %s", path, w.Code, w.Body.String())
+		}
+		return w
+	}
+
+	initial := request("/dashboard").Body.String()
+	if strings.Count(initial, `id="ntp-status-badge"`) != 1 {
+		t.Fatalf("expected exactly one initial NTP badge, got %d", strings.Count(initial, `id="ntp-status-badge"`))
+	}
+	if !strings.Contains(initial, `data-offset-nanos="500000"`) || !strings.Contains(initial, "Awaiting NTP Synchronization") {
+		t.Fatalf("expected initial dashboard badge to include pending status and offset, got:\n%s", initial)
+	}
+	if !strings.Contains(initial, `id="digital-clock"`) {
+		t.Fatal("expected the live clock to remain in the full dashboard")
+	}
+
+	updates := []struct {
+		synced       bool
+		status       string
+		offsetNanos  int64
+		offsetString string
+	}{
+		{synced: true, status: "NTP Synchronized", offsetNanos: 1250000, offsetString: "+1.25ms"},
+		{synced: false, status: "Awaiting NTP Synchronization", offsetNanos: -250000, offsetString: "-0.25ms"},
+	}
+	for _, update := range updates {
+		data.NTP.Synced = update.synced
+		data.NTP.OffsetNanos = update.offsetNanos
+		data.NTP.OffsetString = update.offsetString
+
+		body := request("/dashboard/cards").Body.String()
+		if strings.Contains(body, `id="digital-clock"`) {
+			t.Error("expected cards response to leave the live clock outside the swap target")
+		}
+		if strings.Count(body, `id="ntp-status-badge"`) != 1 {
+			t.Errorf("expected exactly one OOB NTP badge, got %d", strings.Count(body, `id="ntp-status-badge"`))
+		}
+		if !strings.Contains(body, `hx-swap-oob="true"`) {
+			t.Errorf("expected OOB swap marker in cards response, got:\n%s", body)
+		}
+		if !strings.Contains(body, `data-offset-nanos="`+fmt.Sprint(update.offsetNanos)+`"`) {
+			t.Errorf("expected updated offset %d in OOB badge", update.offsetNanos)
+		}
+		if !strings.Contains(body, update.status) {
+			t.Errorf("expected updated NTP badge status %q, got:\n%s", update.status, body)
+		}
+		if !strings.Contains(html.UnescapeString(body), update.offsetString) {
+			t.Errorf("expected updated displayed offset %q", update.offsetString)
+		}
+		cardStatus := "Pending"
+		if update.synced {
+			cardStatus = "Synced"
+		}
+		if !strings.Contains(body, cardStatus) {
+			t.Errorf("expected NTP metric card status %q", cardStatus)
 		}
 	}
 }

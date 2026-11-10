@@ -8,6 +8,11 @@ import (
 	_ "go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/ntp"
 )
 
+type dashboardTemplateData struct {
+	DashboardData
+	NTPBadgeOOB bool
+}
+
 // ping godoc
 //
 //	@Summary		does pong
@@ -24,13 +29,13 @@ func (ctrl *controller) ping(c *gin.Context) {
 // dashboard renders the full HTML dashboard landing page.
 func (ctrl *controller) dashboard(c *gin.Context) {
 	data := ctrl.getDashboardData()
-	c.HTML(http.StatusOK, "dashboard.gohtml", data)
+	c.HTML(http.StatusOK, "dashboard.gohtml", dashboardTemplateData{DashboardData: data})
 }
 
 // dashboardCards renders the partial HTML cards for HTMX dynamic polling updates.
 func (ctrl *controller) dashboardCards(c *gin.Context) {
 	data := ctrl.getDashboardData()
-	c.HTML(http.StatusOK, "cards.gohtml", data)
+	c.HTML(http.StatusOK, "cards-response.gohtml", dashboardTemplateData{DashboardData: data, NTPBadgeOOB: true})
 }
 
 // status godoc

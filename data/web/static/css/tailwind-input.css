@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+/* Quellpfade für das automatische Scannen aller Klassen */
+@source "../../templates/**/*.gohtml";
+@source "../js/**/*.js";
