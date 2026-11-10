@@ -216,7 +216,12 @@ func (ctrl *controller) getDashboardData() DashboardData {
 }
 
 // Start begins serving HTTP requests in a background goroutine.
-func (ctrl *controller) Start(wg *sync.WaitGroup) {
+func (ctrl *controller) Start(wg *sync.WaitGroup) error {
+	listener, err := net.Listen("tcp", ctrl.addr)
+	if err != nil {
+		return errors.Wrapf(err, "cannot listen on '%s'", ctrl.addr)
+	}
+
 	if wg != nil {
 		wg.Add(1)
 	}
@@ -225,10 +230,11 @@ func (ctrl *controller) Start(wg *sync.WaitGroup) {
 			defer wg.Done()
 		}
 		fmt.Printf("starting server at http://%s\n", ctrl.addr)
-		if err := ctrl.server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		if err := ctrl.server.Serve(listener); !errors.Is(err, http.ErrServerClosed) {
 			fmt.Printf("server on '%s' ended: %v\n", ctrl.addr, err)
 		}
 	}()
+	return nil
 }
 
 // GracefulStop shuts down the HTTP server gracefully.

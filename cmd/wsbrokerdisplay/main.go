@@ -172,7 +172,13 @@ func main() {
 		logger.Fatal().Err(err).Msg("cannot initialize rest controller")
 	}
 
-	// 8. Initialize Chromium browser controller
+	// 8. Start REST service in background
+	var wg sync.WaitGroup
+	if err := ctrl.Start(&wg); err != nil {
+		logger.Fatal().Err(err).Msg("cannot start rest controller")
+	}
+
+	// 9. Initialize Chromium browser controller
 	browserCtrl := browser.New(conf.Browser, logger)
 	browserCtx, browserCancel := context.WithTimeout(context.Background(), 20*time.Second)
 	if err := browserCtrl.Start(browserCtx); err != nil {
@@ -180,7 +186,7 @@ func main() {
 	}
 	browserCancel()
 
-	// 9. Initialize and start display coordinator with outgoing event logger
+	// 10. Initialize and start display coordinator with outgoing event logger
 	dispCtrl := display.NewController(rawClient, browserCtrl, logger,
 		display.WithOnSend(func(evt *event.RawEvent) {
 			msgLog.AddEvent("out", evt)
@@ -192,10 +198,6 @@ func main() {
 	if err := rawClient.Connect(context.Background()); err != nil {
 		logger.Warn().Err(err).Msg("failed to initiate wsbroker connection")
 	}
-
-	// 9. Start REST service in background
-	var wg sync.WaitGroup
-	ctrl.Start(&wg)
 
 	fmt.Println("==================================================")
 	fmt.Printf(" WSBroker Display Application Started\n")

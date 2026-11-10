@@ -174,10 +174,9 @@ func TestStartAndGracefulStop(t *testing.T) {
 	}
 
 	wg := &sync.WaitGroup{}
-	ctrl.Start(wg)
-
-	// Wait briefly for server to start listening
-	time.Sleep(100 * time.Millisecond)
+	if err := ctrl.Start(wg); err != nil {
+		t.Fatalf("failed to start controller: %v", err)
+	}
 
 	resp, err := http.Get(fmt.Sprintf("http://%s/api/v1/ping", addr))
 	if err != nil {
