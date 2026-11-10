@@ -3,8 +3,8 @@ package rest
 import (
 	"time"
 
-	"github.com/je4/wsbrokerclient/pkg/event"
-	"github.com/je4/wsbrokerclient/pkg/ntp"
+	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
+	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/ntp"
 )
 
 // WSMessage represents a logged WebSocket message event.

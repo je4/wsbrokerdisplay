@@ -9,10 +9,10 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/zLogger"
-	rawclient "github.com/je4/wsbrokerclient/pkg/client"
-	"github.com/je4/wsbrokerclient/pkg/event"
 	"github.com/je4/wsbrokerdisplay/pkg/rest"
 	"github.com/rs/zerolog"
+	rawclient "go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/client"
+	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
 )
 
 func newTestLogger() zLogger.ZLogger {
@@ -25,10 +25,10 @@ type mockBrokerClient struct {
 	name          string
 	mu            sync.Mutex
 	handlers      []rawclient.EventHandler
-	sentEvents    []*event.Event
-	onSend        func(ctx context.Context, evt *event.Event) error
-	onRequest     func(ctx context.Context, evt *event.Event) (*event.Event, error)
-	waiters       map[string]chan *event.Event
+	sentEvents    []*event.RawEvent
+	onSend        func(ctx context.Context, evt *event.RawEvent) error
+	onRequest     func(ctx context.Context, evt *event.RawEvent) (*event.RawEvent, error)
+	waiters       map[string]chan *event.RawEvent
 	connectCalled bool
 	closed        bool
 }
@@ -36,7 +36,7 @@ type mockBrokerClient struct {
 func newMockBrokerClient(name string) *mockBrokerClient {
 	return &mockBrokerClient{
 		name:    name,
-		waiters: make(map[string]chan *event.Event),
+		waiters: make(map[string]chan *event.RawEvent),
 	}
 }
 
@@ -44,7 +44,7 @@ func (m *mockBrokerClient) ClientName() string {
 	return m.name
 }
 
-func (m *mockBrokerClient) Send(ctx context.Context, evt *event.Event) error {
+func (m *mockBrokerClient) Send(ctx context.Context, evt *event.RawEvent) error {
 	m.mu.Lock()
 	m.sentEvents = append(m.sentEvents, evt)
 	onSend := m.onSend
@@ -56,7 +56,7 @@ func (m *mockBrokerClient) Send(ctx context.Context, evt *event.Event) error {
 	return nil
 }
 
-func (m *mockBrokerClient) Request(ctx context.Context, evt *event.Event) (*event.Event, error) {
+func (m *mockBrokerClient) Request(ctx context.Context, evt *event.RawEvent) (*event.RawEvent, error) {
 	m.mu.Lock()
 	onRequest := m.onRequest
 	m.mu.Unlock()
@@ -64,22 +64,22 @@ func (m *mockBrokerClient) Request(ctx context.Context, evt *event.Event) (*even
 		return onRequest(ctx, evt)
 	}
 
-	ch := make(chan *event.Event, 1)
+	ch := make(chan *event.RawEvent, 1)
 	if err := m.RequestN(ctx, evt, 1, ch); err != nil {
 		return nil, err
 	}
 	return <-ch, nil
 }
 
-func (m *mockBrokerClient) Request0(ctx context.Context, evt *event.Event) error {
+func (m *mockBrokerClient) Request0(ctx context.Context, evt *event.RawEvent) error {
 	return m.Send(ctx, evt)
 }
 
-func (m *mockBrokerClient) Request1(ctx context.Context, evt *event.Event) (*event.Event, error) {
+func (m *mockBrokerClient) Request1(ctx context.Context, evt *event.RawEvent) (*event.RawEvent, error) {
 	return m.Request(ctx, evt)
 }
 
-func (m *mockBrokerClient) RequestN(ctx context.Context, evt *event.Event, numResults int, ch chan *event.Event) error {
+func (m *mockBrokerClient) RequestN(ctx context.Context, evt *event.RawEvent, numResults int, ch chan *event.RawEvent) error {
 	if evt.ID == "" {
 		evt.ID = event.GenerateEventID()
 	}
@@ -92,20 +92,20 @@ func (m *mockBrokerClient) RequestN(ctx context.Context, evt *event.Event, numRe
 
 	m.mu.Lock()
 	if m.waiters == nil {
-		m.waiters = make(map[string]chan *event.Event)
+		m.waiters = make(map[string]chan *event.RawEvent)
 	}
-	waiterCh := make(chan *event.Event, numResults)
+	waiterCh := make(chan *event.RawEvent, numResults)
 	m.waiters[evt.ID] = waiterCh
-	if evt.Token != "" {
-		m.waiters[evt.Token] = waiterCh
+	if evt.Session != "" {
+		m.waiters[evt.Session] = waiterCh
 	}
 	m.mu.Unlock()
 
 	defer func() {
 		m.mu.Lock()
 		delete(m.waiters, evt.ID)
-		if evt.Token != "" {
-			delete(m.waiters, evt.Token)
+		if evt.Session != "" {
+			delete(m.waiters, evt.Session)
 		}
 		m.mu.Unlock()
 	}()
@@ -128,11 +128,11 @@ func (m *mockBrokerClient) RequestN(ctx context.Context, evt *event.Event, numRe
 	return nil
 }
 
-func (m *mockBrokerClient) Reply(ctx context.Context, originalEvt *event.Event, data any) error {
+func (m *mockBrokerClient) Reply(ctx context.Context, originalEvt *event.RawEvent, data any) error {
 	return m.ReplyType(ctx, originalEvt, event.TypeMessage, data)
 }
 
-func (m *mockBrokerClient) ReplyType(ctx context.Context, originalEvt *event.Event, replyType event.EventType, data any) error {
+func (m *mockBrokerClient) ReplyType(ctx context.Context, originalEvt *event.RawEvent, replyType event.EventType, data any) error {
 	if originalEvt == nil {
 		return errors.New("nil event")
 	}
@@ -207,7 +207,7 @@ func (m *mockBrokerClient) Close() error {
 	return nil
 }
 
-func (m *mockBrokerClient) EmitEvent(evt *event.Event) {
+func (m *mockBrokerClient) EmitEvent(evt *event.RawEvent) {
 	m.mu.Lock()
 	if evt.RefID != "" && m.waiters != nil {
 		if ch, found := m.waiters[evt.RefID]; found {
@@ -217,8 +217,8 @@ func (m *mockBrokerClient) EmitEvent(evt *event.Event) {
 			}
 		}
 	}
-	if evt.Token != "" && m.waiters != nil {
-		if ch, found := m.waiters[evt.Token]; found {
+	if evt.Session != "" && m.waiters != nil {
+		if ch, found := m.waiters[evt.Session]; found {
 			select {
 			case ch <- evt:
 			default:
@@ -381,7 +381,7 @@ func TestNavigateMethod(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	mock.onSend = func(ctx context.Context, evt *event.Event) error {
+	mock.onSend = func(ctx context.Context, evt *event.RawEvent) error {
 		if evt != nil {
 			var cmd CommandMessage
 			if err := evt.UnmarshalData(&cmd); err == nil && cmd.Action == ActionNavigate {
@@ -432,7 +432,7 @@ func TestGetURLMethod(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	mock.onSend = func(ctx context.Context, evt *event.Event) error {
+	mock.onSend = func(ctx context.Context, evt *event.RawEvent) error {
 		if evt != nil {
 			var cmd CommandMessage
 			if err := evt.UnmarshalData(&cmd); err == nil && cmd.Action == ActionGetURL {
@@ -469,7 +469,7 @@ func TestGetScreenshotMethod(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	mock.onSend = func(ctx context.Context, evt *event.Event) error {
+	mock.onSend = func(ctx context.Context, evt *event.RawEvent) error {
 		if evt != nil {
 			var cmd CommandMessage
 			if err := evt.UnmarshalData(&cmd); err == nil && cmd.Action == ActionGetScreenshot {
@@ -503,7 +503,7 @@ func TestGetScreenshotErrorResponse(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	mock.onSend = func(ctx context.Context, evt *event.Event) error {
+	mock.onSend = func(ctx context.Context, evt *event.RawEvent) error {
 		if evt != nil {
 			resp := ScreenshotResponse{
 				Action: ActionScreenshotResponse,
@@ -535,7 +535,7 @@ func TestGetStatusMethod(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	mock.onSend = func(ctx context.Context, evt *event.Event) error {
+	mock.onSend = func(ctx context.Context, evt *event.RawEvent) error {
 		if evt != nil {
 			var cmd CommandMessage
 			if err := evt.UnmarshalData(&cmd); err == nil && (cmd.Action == ActionGetStatus || cmd.Event == "display:getstatus") {
@@ -583,7 +583,7 @@ func TestGetStatusErrorResponse(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	mock.onSend = func(ctx context.Context, evt *event.Event) error {
+	mock.onSend = func(ctx context.Context, evt *event.RawEvent) error {
 		if evt != nil {
 			resp := StatusResponse{
 				Action: ActionGetStatusResponse,
@@ -643,7 +643,7 @@ func TestAsyncSendMethods(t *testing.T) {
 		t.Fatalf("expected 4 captured events, got %d", len(mock.sentEvents))
 	}
 
-	if mock.sentEvents[0].Token != "tok1" || mock.sentEvents[1].Token != "tok2" || mock.sentEvents[2].Token != "tok3" || mock.sentEvents[3].Token != "tok4" {
+	if mock.sentEvents[0].Session != "tok1" || mock.sentEvents[1].Session != "tok2" || mock.sentEvents[2].Session != "tok3" || mock.sentEvents[3].Session != "tok4" {
 		t.Errorf("unexpected tokens in captured events")
 	}
 }
@@ -679,7 +679,7 @@ func TestClientRequestAndReplyMethods(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	mock.onSend = func(ctx context.Context, evt *event.Event) error {
+	mock.onSend = func(ctx context.Context, evt *event.RawEvent) error {
 		if evt != nil {
 			var msg string
 			_ = evt.UnmarshalData(&msg)
@@ -732,7 +732,7 @@ func TestClientRequestAndReplyMethods(t *testing.T) {
 
 	// 4. Test RequestN
 	reqEvtN, _ := event.NewMessageEvent("controller01", "server01", "ping-request")
-	ch := make(chan *event.Event, 1)
+	ch := make(chan *event.RawEvent, 1)
 	if err := c.RequestN(ctx, reqEvtN, 1, ch); err != nil {
 		t.Fatalf("RequestN failed: %v", err)
 	}

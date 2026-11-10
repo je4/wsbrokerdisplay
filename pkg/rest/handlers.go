@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/je4/wsbrokerclient/pkg/ntp"
+	_ "go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/ntp"
 )
 
 // ping godoc

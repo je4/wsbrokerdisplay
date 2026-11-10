@@ -11,11 +11,11 @@ require (
 	github.com/gin-contrib/cors v1.7.9
 	github.com/gin-gonic/gin v1.12.0
 	github.com/je4/utils/v2 v2.0.71
-	github.com/je4/wsbrokerclient v0.0.0-20261027105442-7833eb6b9879
 	github.com/rs/zerolog v1.35.1
 	github.com/swaggo/swag/v2 v2.0.0-rc6
 	go.ub.unibas.ch/cloud/certloader/v2 v2.0.26
 	go.ub.unibas.ch/cloud/swaggerui v0.0.0-20261002124323-79cb1c8a550a
+	go.ub.unibas.ch/library-infrastructure/wsbrokerclient v0.0.0-20261102112902-b3737d5b0631
 )
 
 require (
@@ -81,4 +81,4 @@ require (
 	k8s.io/klog/v2 v2.140.0 // indirect
 )
 
-replace github.com/je4/wsbrokerclient => ../wsbrokerclient
+replace go.ub.unibas.ch/library-infrastructure/wsbrokerclient => ../wsbrokerclient

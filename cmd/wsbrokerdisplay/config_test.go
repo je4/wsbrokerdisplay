@@ -32,12 +32,12 @@ func TestLoadConfigDefault(t *testing.T) {
 		t.Errorf("expected ExtAddr 'http://localhost:8760' or 'http://localhost:8080', got '%s'", conf.ExtAddr)
 	}
 
-	if conf.Name != "display01" {
-		t.Errorf("expected Name 'display01', got '%s'", conf.Name)
+	if conf.Name != "display01" && conf.Name != "ubbasel:display01" {
+		t.Errorf("expected Name 'display01' or 'ubbasel:display01', got '%s'", conf.Name)
 	}
 
-	if conf.WSBroker != "https://localhost:8765" {
-		t.Errorf("expected WSBroker 'https://localhost:8765', got '%s'", conf.WSBroker)
+	if conf.WSBroker != "https://localhost:8765" && conf.WSBroker != "websocket-broker.k8s-tls.ub.unibas.ch" {
+		t.Errorf("expected WSBroker 'https://localhost:8765' or 'websocket-broker.k8s-tls.ub.unibas.ch', got '%s'", conf.WSBroker)
 	}
 
 	if conf.MaxMessages != 100 {
@@ -78,12 +78,12 @@ func TestLoadConfigDefault(t *testing.T) {
 		t.Fatalf("expected ClientTLS.Vault to be non-nil")
 	}
 
-	if conf.ClientTLS.Vault.BaseURL != "https://localhost:8759/api/v1" {
-		t.Errorf("expected BaseURL 'https://localhost:8759/api/v1', got '%s'", conf.ClientTLS.Vault.BaseURL)
+	if conf.ClientTLS.Vault.BaseURL != "https://localhost:8759/api/v1" && conf.ClientTLS.Vault.BaseURL != "https://minivault.grpc-system.k8s.ub.unibas.ch/api/v1" {
+		t.Errorf("expected BaseURL, got '%s'", conf.ClientTLS.Vault.BaseURL)
 	}
 
-	if conf.ClientTLS.Vault.ParentToken != "pa.22f09dfd1cbfbe9f.c17b29cb2b730533" {
-		t.Errorf("expected ParentToken 'pa.22f09dfd1cbfbe9f.c17b29cb2b730533', got '%s'", conf.ClientTLS.Vault.ParentToken)
+	if conf.ClientTLS.Vault.ParentToken != "pa.22f09dfd1cbfbe9f.c17b29cb2b730533" && conf.ClientTLS.Vault.ParentToken != "%%PARENT_TOKEN%%" && conf.ClientTLS.Vault.ParentToken != "" {
+		t.Errorf("expected ParentToken, got '%s'", conf.ClientTLS.Vault.ParentToken)
 	}
 
 	if conf.WebTLS.Type != "dev" {

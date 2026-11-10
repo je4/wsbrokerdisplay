@@ -8,7 +8,7 @@ External applications, dashboards, and automated control services can use this p
 
 ## Key Features
 
-- **Dependency Inversion**: Wraps `BrokerClient` (implemented by `github.com/je4/wsbrokerclient/pkg/client.Client`), allowing full caller control over transport configuration, mTLS certloader setup, and connection lifecycle.
+- **Dependency Inversion**: Wraps `BrokerClient` (implemented by `go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/client.Client`), allowing full caller control over transport configuration, mTLS certloader setup, and connection lifecycle.
 - **Synchronous Remote Control APIs**:
   - `Navigate(ctx, target, targetURL, waitSelector...)`: Navigates the target browser and blocks until acknowledgment is received.
   - `GetURL(ctx, target)`: Queries the currently rendered page URL on the target display.
@@ -87,7 +87,7 @@ import (
 	"log"
 	"time"
 
-	rawclient "github.com/je4/wsbrokerclient/pkg/client"
+	rawclient "go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/client"
 	"github.com/je4/wsbrokerdisplay/pkg/brokerclient"
 )
 

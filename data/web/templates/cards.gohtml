@@ -239,7 +239,7 @@
                         <th>Richtung</th>
                         <th>Typ</th>
                         <th>Quelle &rarr; Ziel</th>
-                        <th>Token</th>
+                        <th>Session</th>
                         <th>Payload / Daten</th>
                     </tr>
                 </thead>
@@ -263,7 +263,7 @@
                             <span class="text-primary font-semibold">{{.Source}}</span>
                             {{if .Target}}<span class="text-base-content/50 mx-1">&rarr;</span><span class="text-secondary font-medium">{{.Target}}</span>{{end}}
                         </td>
-                        <td class="whitespace-nowrap">{{if .Token}}{{.Token}}{{else}}-{{end}}</td>
+                        <td class="whitespace-nowrap">{{if .Session}}{{.Session}}{{else}}-{{end}}</td>
                         <td class="break-all max-w-xl">{{if .Data}}{{.Data}}{{else}}<span class="text-base-content/40 italic">keine</span>{{end}}</td>
                     </tr>
                     {{end}}

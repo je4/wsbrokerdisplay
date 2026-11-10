@@ -9,11 +9,11 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/zLogger"
-	"github.com/je4/wsbrokerclient/pkg/client"
-	"github.com/je4/wsbrokerclient/pkg/event"
 	"github.com/je4/wsbrokerdisplay/pkg/browser"
 	"github.com/je4/wsbrokerdisplay/pkg/rest"
 	"github.com/rs/zerolog"
+	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/client"
+	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
 )
 
 func newTestLogger() zLogger.ZLogger {
@@ -26,7 +26,7 @@ type mockClient struct {
 	name       string
 	mu         sync.Mutex
 	handlers   []client.EventHandler
-	sentEvents []*event.Event
+	sentEvents []*event.RawEvent
 }
 
 func newMockClient(name string) *mockClient {
@@ -51,14 +51,14 @@ func (m *mockClient) OnMessage(handler client.EventHandler) client.UnsubscribeFu
 	}
 }
 
-func (m *mockClient) Send(ctx context.Context, evt *event.Event) error {
+func (m *mockClient) Send(ctx context.Context, evt *event.RawEvent) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.sentEvents = append(m.sentEvents, evt)
 	return nil
 }
 
-func (m *mockClient) EmitMessage(evt *event.Event) {
+func (m *mockClient) EmitMessage(evt *event.RawEvent) {
 	m.mu.Lock()
 	handlers := make([]client.EventHandler, len(m.handlers))
 	copy(handlers, m.handlers)
@@ -147,7 +147,7 @@ func TestControllerNavigateSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create event: %v", err)
 	}
-	evt.Token = "token-123"
+	evt.Session = "token-123"
 
 	mockCl.EmitMessage(evt)
 
@@ -161,8 +161,8 @@ func TestControllerNavigateSuccess(t *testing.T) {
 		t.Fatalf("expected 1 event, got %d", len(mockCl.sentEvents))
 	}
 	sentEvt := mockCl.sentEvents[0]
-	if sentEvt.Target != "remoteClient" || sentEvt.Token != "token-123" {
-		t.Errorf("unexpected response routing: target=%s token=%s", sentEvt.Target, sentEvt.Token)
+	if sentEvt.Target != "remoteClient" || sentEvt.Session != "token-123" {
+		t.Errorf("unexpected response routing: target=%s session=%s", sentEvt.Target, sentEvt.Session)
 	}
 	var navResp NavigateResponse
 	if err := sentEvt.UnmarshalData(&navResp); err != nil {
@@ -351,7 +351,7 @@ func TestControllerGetScreenshotSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create event: %v", err)
 	}
-	evt.Token = "shot-tok"
+	evt.Session = "shot-tok"
 
 	mockCl.EmitMessage(evt)
 
@@ -371,8 +371,8 @@ func TestControllerGetScreenshotSuccess(t *testing.T) {
 	if sentEvt.Type != event.TypeFile {
 		t.Fatalf("expected TypeFile event, got %s", sentEvt.Type)
 	}
-	if sentEvt.Target != "remoteClient" || sentEvt.Token != "shot-tok" {
-		t.Errorf("unexpected sentFile target/token: %s %s", sentEvt.Target, sentEvt.Token)
+	if sentEvt.Target != "remoteClient" || sentEvt.Session != "shot-tok" {
+		t.Errorf("unexpected sentFile target/token: %s %s", sentEvt.Target, sentEvt.Session)
 	}
 	var fileMsg event.FileMessage
 	if err := sentEvt.UnmarshalData(&fileMsg); err != nil {
@@ -489,10 +489,10 @@ func TestControllerWithOnSend(t *testing.T) {
 	mockCl := newMockClient("display01")
 	mockBr := &mockBrowser{}
 
-	var interceptedEvents []*event.Event
+	var interceptedEvents []*event.RawEvent
 	var mu sync.Mutex
 
-	ctrl := NewController(mockCl, mockBr, logger, WithOnSend(func(evt *event.Event) {
+	ctrl := NewController(mockCl, mockBr, logger, WithOnSend(func(evt *event.RawEvent) {
 		mu.Lock()
 		defer mu.Unlock()
 		interceptedEvents = append(interceptedEvents, evt)
@@ -508,7 +508,7 @@ func TestControllerWithOnSend(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create event: %v", err)
 	}
-	evt.Token = "tok-navigate-1"
+	evt.Session = "tok-navigate-1"
 
 	mockCl.EmitMessage(evt)
 
@@ -517,8 +517,8 @@ func TestControllerWithOnSend(t *testing.T) {
 	if len(interceptedEvents) != 1 {
 		t.Fatalf("expected 1 intercepted event, got %d", len(interceptedEvents))
 	}
-	if interceptedEvents[0].Token != "tok-navigate-1" {
-		t.Errorf("expected token tok-navigate-1, got %s", interceptedEvents[0].Token)
+	if interceptedEvents[0].Session != "tok-navigate-1" {
+		t.Errorf("expected token tok-navigate-1, got %s", interceptedEvents[0].Session)
 	}
 }
 
@@ -568,7 +568,7 @@ func TestController_GetStatus_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create event: %v", err)
 	}
-	evt.Token = "tok-status-999"
+	evt.Session = "tok-status-999"
 
 	mockCl.EmitMessage(evt)
 
@@ -582,8 +582,8 @@ func TestController_GetStatus_Success(t *testing.T) {
 		t.Fatalf("expected 1 response event, got %d", len(mockCl.sentEvents))
 	}
 	sentEvt := mockCl.sentEvents[0]
-	if sentEvt.Target != "remoteClient" || sentEvt.Token != "tok-status-999" {
-		t.Errorf("unexpected response routing: target=%s token=%s", sentEvt.Target, sentEvt.Token)
+	if sentEvt.Target != "remoteClient" || sentEvt.Session != "tok-status-999" {
+		t.Errorf("unexpected response routing: target=%s session=%s", sentEvt.Target, sentEvt.Session)
 	}
 	var resp StatusResponse
 	if err := sentEvt.UnmarshalData(&resp); err != nil {
@@ -623,7 +623,7 @@ func TestController_GetStatus_NoProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create event: %v", err)
 	}
-	evt.Token = "tok-noprov"
+	evt.Session = "tok-noprov"
 
 	mockCl.EmitMessage(evt)
 

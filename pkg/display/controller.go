@@ -13,10 +13,10 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/zLogger"
-	"github.com/je4/wsbrokerclient/pkg/client"
-	"github.com/je4/wsbrokerclient/pkg/event"
 	"github.com/je4/wsbrokerdisplay/pkg/browser"
 	"github.com/je4/wsbrokerdisplay/pkg/rest"
+	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/client"
+	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
 )
 
 // BrowserInterface represents browser actions required by the display coordinator.
@@ -40,7 +40,7 @@ type ClientInterface interface {
 	// OnMessage registers an event handler for incoming TypeMessage events.
 	OnMessage(handler client.EventHandler) client.UnsubscribeFunc
 	// Send transmits an event envelope over the WebSocket connection.
-	Send(ctx context.Context, evt *event.Event) error
+	Send(ctx context.Context, evt *event.RawEvent) error
 }
 
 // Controller coordinates incoming WSBroker events and browser execution.
@@ -52,7 +52,7 @@ type Controller struct {
 	logger         zLogger.ZLogger
 	timeout        time.Duration
 	unsubscribes   []client.UnsubscribeFunc
-	onSend         func(evt *event.Event)
+	onSend         func(evt *event.RawEvent)
 	statusProvider func() rest.DashboardData
 	mu             sync.Mutex
 }
@@ -70,7 +70,7 @@ func WithTimeout(d time.Duration) Option {
 }
 
 // WithOnSend registers a callback invoked whenever the controller sends an outgoing event.
-func WithOnSend(fn func(evt *event.Event)) Option {
+func WithOnSend(fn func(evt *event.RawEvent)) Option {
 	return func(c *Controller) {
 		c.onSend = fn
 	}
@@ -122,7 +122,7 @@ func (c *Controller) Stop() {
 }
 
 // HandleEvent processes an incoming WSBroker event, parses command payloads, and routes actions.
-func (c *Controller) HandleEvent(evt *event.Event) {
+func (c *Controller) HandleEvent(evt *event.RawEvent) {
 	if evt == nil {
 		return
 	}
@@ -177,7 +177,7 @@ func (c *Controller) HandleEvent(evt *event.Event) {
 
 // handleGetStatus retrieves the live display telemetry from the status provider,
 // strips the message log, and transmits the response back to the requester.
-func (c *Controller) handleGetStatus(ctx context.Context, origEvt *event.Event) {
+func (c *Controller) handleGetStatus(ctx context.Context, origEvt *event.RawEvent) {
 	if c.statusProvider == nil {
 		c.logger.Warn().Msg("status provider not configured")
 		_ = c.sendResponse(ctx, origEvt, StatusResponse{
@@ -200,7 +200,7 @@ func (c *Controller) handleGetStatus(ctx context.Context, origEvt *event.Event) 
 }
 
 // handleNavigate executes a browser navigation command and returns the navigation status.
-func (c *Controller) handleNavigate(ctx context.Context, origEvt *event.Event, cmd CommandMessage) {
+func (c *Controller) handleNavigate(ctx context.Context, origEvt *event.RawEvent, cmd CommandMessage) {
 	if cmd.URL == "" {
 		_ = c.sendResponse(ctx, origEvt, NavigateResponse{
 			Event:  EventNavigateResponse,
@@ -237,7 +237,7 @@ func (c *Controller) handleNavigate(ctx context.Context, origEvt *event.Event, c
 }
 
 // handleGetURL retrieves the current browser URL and transmits the response back to requester.
-func (c *Controller) handleGetURL(ctx context.Context, origEvt *event.Event) {
+func (c *Controller) handleGetURL(ctx context.Context, origEvt *event.RawEvent) {
 	currentURL, err := c.browser.GetURL(ctx)
 	if err != nil {
 		c.logger.Error().Err(err).Msg("failed to get current URL")
@@ -257,7 +257,7 @@ func (c *Controller) handleGetURL(ctx context.Context, origEvt *event.Event) {
 
 // handleGetScreenshot captures a screenshot downscaled to fit within max 800x600 pixels
 // and delivers the resulting image as a binary file event.
-func (c *Controller) handleGetScreenshot(ctx context.Context, origEvt *event.Event, cmd CommandMessage) {
+func (c *Controller) handleGetScreenshot(ctx context.Context, origEvt *event.RawEvent, cmd CommandMessage) {
 	format := cmd.Format
 	if format == "" {
 		format = "jpeg"
@@ -299,8 +299,8 @@ func (c *Controller) handleGetScreenshot(ctx context.Context, origEvt *event.Eve
 }
 
 // sendResponse transmits a structured response message to the target client or channel.
-func (c *Controller) sendResponse(ctx context.Context, origEvt *event.Event, response any) error {
-	var replyEvt *event.Event
+func (c *Controller) sendResponse(ctx context.Context, origEvt *event.RawEvent, response any) error {
+	var replyEvt *event.RawEvent
 	var err error
 	if origEvt != nil {
 		replyEvt, err = origEvt.CreateReply(event.TypeMessage, response)
@@ -321,9 +321,9 @@ func (c *Controller) sendResponse(ctx context.Context, origEvt *event.Event, res
 }
 
 // sendFile transmits a binary file payload to the target.
-func (c *Controller) sendFile(ctx context.Context, origEvt *event.Event, filename, mimeType string, data []byte) error {
+func (c *Controller) sendFile(ctx context.Context, origEvt *event.RawEvent, filename, mimeType string, data []byte) error {
 	fileMsg := event.NewFileMessage(filename, mimeType, data)
-	var replyEvt *event.Event
+	var replyEvt *event.RawEvent
 	var err error
 	if origEvt != nil {
 		replyEvt, err = origEvt.CreateReply(event.TypeFile, fileMsg)
@@ -331,7 +331,7 @@ func (c *Controller) sendFile(ctx context.Context, origEvt *event.Event, filenam
 			return errors.Wrap(err, "failed to create file reply event")
 		}
 	} else {
-		replyEvt, err = event.NewFileEvent(c.client.ClientName(), "", fileMsg)
+		replyEvt, err = event.NewRawEvent(event.TypeFile, c.client.ClientName(), "", fileMsg)
 		if err != nil {
 			return errors.Wrap(err, "failed to create file event")
 		}

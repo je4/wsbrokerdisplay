@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/je4/wsbrokerclient/pkg/event"
+	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
 )
 
 // MessageLog stores a thread-safe rolling buffer of recent WebSocket messages.
@@ -58,8 +58,8 @@ func (ml *MessageLog) Add(msg WSMessage) {
 	ml.entries = append(ml.entries, msg)
 }
 
-// AddEvent parses and adds an event.Event to the log with the specified direction ("in" or "out").
-func (ml *MessageLog) AddEvent(direction string, evt *event.Event) {
+// AddEvent parses and adds an event.RawEvent to the log with the specified direction ("in" or "out").
+func (ml *MessageLog) AddEvent(direction string, evt *event.RawEvent) {
 	if evt == nil {
 		return
 	}

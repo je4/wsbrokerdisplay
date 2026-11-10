@@ -230,7 +230,7 @@ func TestDashboardAndStaticRoutes(t *testing.T) {
 				Type:      "test",
 				Source:    "broker",
 				Target:    "display",
-				Token:     "tok123",
+				Session:   "tok123",
 				Data:      "Hello World",
 			},
 		},
@@ -494,7 +494,7 @@ func TestMessagesEndpointAndDashboardCards(t *testing.T) {
 		Type:      "message",
 		Source:    "remote01",
 		Target:    "display01",
-		Token:     "tok-123",
+		Session:   "tok-123",
 		Data:      `{"action":"navigate","url":"https://example.com"}`,
 	})
 	msgLog.Add(WSMessage{
@@ -503,7 +503,7 @@ func TestMessagesEndpointAndDashboardCards(t *testing.T) {
 		Type:      "message",
 		Source:    "display01",
 		Target:    "remote01",
-		Token:     "tok-123",
+		Session:   "tok-123",
 		Data:      `{"action":"navigate_response","status":"ok"}`,
 	})
 
@@ -534,7 +534,7 @@ func TestMessagesEndpointAndDashboardCards(t *testing.T) {
 		if len(msgs) != 2 {
 			t.Fatalf("expected 2 messages, got %d", len(msgs))
 		}
-		if msgs[0].Direction != "out" || msgs[0].Source != "display01" || msgs[0].Token != "tok-123" {
+		if msgs[0].Direction != "out" || msgs[0].Source != "display01" || msgs[0].Session != "tok-123" {
 			t.Errorf("unexpected message 0 (expected newest 'out'): %+v", msgs[0])
 		}
 		if msgs[1].Direction != "in" || msgs[1].Source != "remote01" {

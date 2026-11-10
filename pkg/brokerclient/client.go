@@ -10,9 +10,9 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/je4/utils/v2/pkg/zLogger"
-	rawclient "github.com/je4/wsbrokerclient/pkg/client"
-	"github.com/je4/wsbrokerclient/pkg/event"
 	"github.com/je4/wsbrokerdisplay/pkg/rest"
+	rawclient "go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/client"
+	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
 )
 
 // BrokerClient abstracts the underlying WSBroker client transport operations.
@@ -21,19 +21,19 @@ type BrokerClient interface {
 	// ClientName returns the configured unique identifier of the WSBroker client.
 	ClientName() string
 	// Send transmits an event envelope over the WebSocket connection.
-	Send(ctx context.Context, evt *event.Event) error
-	// Request sends an event and waits synchronously for a correlated response matching evt.ID / evt.Token.
-	Request(ctx context.Context, evt *event.Event) (*event.Event, error)
+	Send(ctx context.Context, evt *event.RawEvent) error
+	// Request sends an event and waits synchronously for a correlated response matching evt.ID / evt.Session.
+	Request(ctx context.Context, evt *event.RawEvent) (*event.RawEvent, error)
 	// Request0 sends an event with a newly generated ID without waiting for any response.
-	Request0(ctx context.Context, evt *event.Event) error
+	Request0(ctx context.Context, evt *event.RawEvent) error
 	// Request1 sends an event and waits synchronously for a single correlated response using RequestN.
-	Request1(ctx context.Context, evt *event.Event) (*event.Event, error)
+	Request1(ctx context.Context, evt *event.RawEvent) (*event.RawEvent, error)
 	// RequestN sends an event and streams up to numResults correlated responses into ch.
-	RequestN(ctx context.Context, evt *event.Event, numResults int, ch chan *event.Event) error
+	RequestN(ctx context.Context, evt *event.RawEvent, numResults int, ch chan *event.RawEvent) error
 	// Reply sends a correlated response message to originalEvt with the provided data payload.
-	Reply(ctx context.Context, originalEvt *event.Event, data any) error
+	Reply(ctx context.Context, originalEvt *event.RawEvent, data any) error
 	// ReplyType sends a correlated response of a specific replyType to originalEvt with data payload.
-	ReplyType(ctx context.Context, originalEvt *event.Event, replyType event.EventType, data any) error
+	ReplyType(ctx context.Context, originalEvt *event.RawEvent, replyType event.EventType, data any) error
 	// SendMessage sends a payload to a target (channel or direct client).
 	SendMessage(ctx context.Context, target string, data any) error
 	// Broadcast sends a broadcast payload to a channel.
@@ -113,37 +113,37 @@ func (c *Client) Close() error {
 }
 
 // Send transmits an event envelope over the WebSocket connection.
-func (c *Client) Send(ctx context.Context, evt *event.Event) error {
+func (c *Client) Send(ctx context.Context, evt *event.RawEvent) error {
 	return c.raw.Send(ctx, evt)
 }
 
-// Request sends an event envelope and waits synchronously for a correlated response matching evt.ID / evt.Token.
-func (c *Client) Request(ctx context.Context, evt *event.Event) (*event.Event, error) {
+// Request sends an event envelope and waits synchronously for a correlated response matching evt.ID / evt.Session.
+func (c *Client) Request(ctx context.Context, evt *event.RawEvent) (*event.RawEvent, error) {
 	return c.raw.Request(ctx, evt)
 }
 
 // Request0 sends an event envelope without waiting for any response.
-func (c *Client) Request0(ctx context.Context, evt *event.Event) error {
+func (c *Client) Request0(ctx context.Context, evt *event.RawEvent) error {
 	return c.raw.Request0(ctx, evt)
 }
 
 // Request1 sends an event envelope and waits synchronously for a single correlated response.
-func (c *Client) Request1(ctx context.Context, evt *event.Event) (*event.Event, error) {
+func (c *Client) Request1(ctx context.Context, evt *event.RawEvent) (*event.RawEvent, error) {
 	return c.raw.Request1(ctx, evt)
 }
 
 // RequestN sends an event envelope and streams up to numResults correlated responses into ch.
-func (c *Client) RequestN(ctx context.Context, evt *event.Event, numResults int, ch chan *event.Event) error {
+func (c *Client) RequestN(ctx context.Context, evt *event.RawEvent, numResults int, ch chan *event.RawEvent) error {
 	return c.raw.RequestN(ctx, evt, numResults, ch)
 }
 
 // Reply sends a correlated TypeMessage response event to originalEvt carrying data payload.
-func (c *Client) Reply(ctx context.Context, originalEvt *event.Event, data any) error {
+func (c *Client) Reply(ctx context.Context, originalEvt *event.RawEvent, data any) error {
 	return c.raw.Reply(ctx, originalEvt, data)
 }
 
 // ReplyType sends a correlated response event of the specified replyType to originalEvt.
-func (c *Client) ReplyType(ctx context.Context, originalEvt *event.Event, replyType event.EventType, data any) error {
+func (c *Client) ReplyType(ctx context.Context, originalEvt *event.RawEvent, replyType event.EventType, data any) error {
 	return c.raw.ReplyType(ctx, originalEvt, replyType, data)
 }
 
@@ -163,22 +163,22 @@ func (c *Client) SendDirect(ctx context.Context, targetClient string, data any) 
 }
 
 // OnEvent registers a listener callback for all incoming events.
-func (c *Client) OnEvent(handler func(evt *event.Event)) rawclient.UnsubscribeFunc {
+func (c *Client) OnEvent(handler func(evt *event.RawEvent)) rawclient.UnsubscribeFunc {
 	return c.raw.OnEvent(handler)
 }
 
 // OnMessage registers a listener callback for incoming TypeMessage events.
-func (c *Client) OnMessage(handler func(evt *event.Event)) rawclient.UnsubscribeFunc {
+func (c *Client) OnMessage(handler func(evt *event.RawEvent)) rawclient.UnsubscribeFunc {
 	return c.raw.OnMessage(handler)
 }
 
 // OnDirect registers a listener callback for events addressed directly to this client.
-func (c *Client) OnDirect(handler func(evt *event.Event)) rawclient.UnsubscribeFunc {
+func (c *Client) OnDirect(handler func(evt *event.RawEvent)) rawclient.UnsubscribeFunc {
 	return c.raw.OnDirect(handler)
 }
 
 // OnChannel registers a listener callback for events broadcast to a channel.
-func (c *Client) OnChannel(channel string, handler func(evt *event.Event)) rawclient.UnsubscribeFunc {
+func (c *Client) OnChannel(channel string, handler func(evt *event.RawEvent)) rawclient.UnsubscribeFunc {
 	return c.raw.OnChannel(channel, handler)
 }
 
@@ -352,7 +352,7 @@ func (c *Client) SendNavigate(ctx context.Context, target string, targetURL stri
 		return errors.Wrap(err, "failed to create navigate command event")
 	}
 	if len(token) > 0 && token[0] != "" {
-		evt.Token = token[0]
+		evt.Session = token[0]
 	}
 	return c.raw.Request0(ctx, evt)
 }
@@ -368,7 +368,7 @@ func (c *Client) SendGetURL(ctx context.Context, target string, token ...string)
 		return errors.Wrap(err, "failed to create geturl command event")
 	}
 	if len(token) > 0 && token[0] != "" {
-		evt.Token = token[0]
+		evt.Session = token[0]
 	}
 	return c.raw.Request0(ctx, evt)
 }
@@ -386,7 +386,7 @@ func (c *Client) SendGetScreenshot(ctx context.Context, target string, format st
 		return errors.Wrap(err, "failed to create getscreenshot command event")
 	}
 	if len(token) > 0 && token[0] != "" {
-		evt.Token = token[0]
+		evt.Session = token[0]
 	}
 	return c.raw.Request0(ctx, evt)
 }
@@ -402,7 +402,7 @@ func (c *Client) SendGetStatus(ctx context.Context, target string, token ...stri
 		return errors.Wrap(err, "failed to create getstatus command event")
 	}
 	if len(token) > 0 && token[0] != "" {
-		evt.Token = token[0]
+		evt.Session = token[0]
 	}
 	return c.raw.Request0(ctx, evt)
 }

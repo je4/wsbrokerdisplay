@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/je4/utils/v2/pkg/zLogger"
-	rawclient "github.com/je4/wsbrokerclient/pkg/client"
-	"github.com/je4/wsbrokerclient/pkg/event"
-	"github.com/je4/wsbrokerclient/pkg/ntp"
 	"github.com/je4/wsbrokerdisplay/pkg/browser"
 	"github.com/je4/wsbrokerdisplay/pkg/display"
 	"github.com/je4/wsbrokerdisplay/pkg/rest"
 	"github.com/rs/zerolog"
+	rawclient "go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/client"
+	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/event"
+	"go.ub.unibas.ch/library-infrastructure/wsbrokerclient/pkg/ntp"
 )
 
 var configfile = flag.String("config", "", "location of toml configuration file")
@@ -87,7 +87,7 @@ func main() {
 		Data:      fmt.Sprintf("WSBroker Display initialisiert (Endpoint: %s)", conf.WSBroker),
 	})
 
-	rawClient.OnEvent(func(evt *event.Event) {
+	rawClient.OnEvent(func(evt *event.RawEvent) {
 		msgLog.AddEvent("in", evt)
 	})
 	rawClient.OnConnect(func() {
@@ -182,7 +182,7 @@ func main() {
 
 	// 9. Initialize and start display coordinator with outgoing event logger
 	dispCtrl := display.NewController(rawClient, browserCtrl, logger,
-		display.WithOnSend(func(evt *event.Event) {
+		display.WithOnSend(func(evt *event.RawEvent) {
 			msgLog.AddEvent("out", evt)
 		}),
 		display.WithStatusProvider(dataProvider),
